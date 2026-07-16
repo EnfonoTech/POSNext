@@ -1,0 +1,61 @@
+{
+ "actions": [],
+ "creation": "2026-07-16 21:45:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "option_label",
+  "price_delta",
+  "is_default",
+  "disabled",
+  "linked_item"
+ ],
+ "fields": [
+  {
+   "fieldname": "option_label",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Option Label",
+   "reqd": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "price_delta",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Price Delta"
+  },
+  {
+   "default": "0",
+   "fieldname": "is_default",
+   "fieldtype": "Check",
+   "label": "Is Default"
+  },
+  {
+   "default": "0",
+   "fieldname": "disabled",
+   "fieldtype": "Check",
+   "label": "Disabled"
+  },
+  {
+   "description": "Reserved for future stock / COGS mapping (unused in v1)",
+   "fieldname": "linked_item",
+   "fieldtype": "Link",
+   "label": "Linked Item",
+   "options": "Item"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-07-16 21:45:00.000000",
+ "modified_by": "Administrator",
+ "module": "Restaurant",
+ "name": "POS Modifier Option",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

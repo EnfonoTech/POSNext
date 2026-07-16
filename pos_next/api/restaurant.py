@@ -66,6 +66,139 @@ def _resolve_rate(item_code, pos_profile=None):
 	return rate
 
 
+# ─────────────────────────────────────────────
+#  Menu-item modifiers (Size, Extras, …)
+# ─────────────────────────────────────────────
+
+MODIFIER_SEP = " · "
+
+
+def _resolve_item_modifiers(item_code):
+	"""Resolve the modifier groups configured on an Item into a display/pricing
+	structure, in configuration (idx) order. Disabled groups and disabled options
+	are excluded — they are never priced and never selectable. Cached per-request
+	in frappe.flags, keyed by item, so repeated calls in one request hit no DB."""
+	cache = frappe.flags.setdefault("_pos_item_modifiers", {})
+	if item_code in cache:
+		return cache[item_code]
+
+	rows = frappe.get_all(
+		"POS Item Modifier",
+		filters={"parent": item_code, "parenttype": "Item", "parentfield": "custom_modifier_groups"},
+		fields=["modifier_group"],
+		order_by="idx asc",
+	)
+	groups = []
+	for row in rows:
+		grp = frappe.get_cached_doc("POS Modifier Group", row.modifier_group)
+		if cint(grp.disabled):
+			continue
+		options = [
+			{
+				"label": o.option_label,
+				"price_delta": flt(o.price_delta),
+				"is_default": cint(o.is_default),
+			}
+			for o in grp.options
+			if not cint(o.disabled)
+		]
+		groups.append(
+			{
+				"group_name": grp.group_name,
+				"selection_type": grp.selection_type,
+				"is_required": cint(grp.is_required),
+				"min": cint(grp.min_select),
+				"max": cint(grp.max_select),
+				"options": options,
+			}
+		)
+	cache[item_code] = groups
+	return groups
+
+
+def _parse_modifier_selection(modifiers):
+	"""Normalise the client selection to a dict {group_name: label | [labels]}.
+	Accepts a dict, a JSON string, or a falsy value (-> empty selection)."""
+	if not modifiers:
+		return {}
+	if isinstance(modifiers, str):
+		try:
+			modifiers = json.loads(modifiers)
+		except (ValueError, TypeError):
+			frappe.throw(_("Invalid modifier selection"))
+	if not isinstance(modifiers, dict):
+		frappe.throw(_("Invalid modifier selection"))
+	return modifiers
+
+
+def _selected_labels(value):
+	"""One selection value -> a clean list of chosen labels."""
+	if value is None or value == "":
+		return []
+	if isinstance(value, (list, tuple)):
+		return [cstr(v) for v in value if cstr(v) != ""]
+	return [cstr(value)]
+
+
+def _price_with_modifiers(item_code, base_rate, modifiers):
+	"""Return (rate, validated_selection, note) for a modifier selection.
+
+	The client sends only the selection (group -> label(s)); every price comes
+	from server config. rate = flt(base_rate + sum of selected price_delta).
+	Validates group/option membership, single-select, required, min/max. The note
+	lists the chosen options joined by ' · ' in configuration order. An empty
+	selection with no required groups returns the base rate and an empty note."""
+	selection = _parse_modifier_selection(modifiers)
+	groups = _resolve_item_modifiers(item_code)
+	by_name = {g["group_name"]: g for g in groups}
+
+	# Reject any group the client sent that is not offered by this item (also
+	# catches disabled/unknown groups, which are absent from the resolved list).
+	for key in selection:
+		if key not in by_name:
+			frappe.throw(_("Modifier group {0} is not available for item {1}").format(key, item_code))
+
+	note_parts = []
+	total_delta = 0.0
+	validated = {}
+
+	for grp in groups:  # configuration order
+		# De-duplicate: the same option sent twice is one distinct pick. len(picks)
+		# gates min/max while pricing counts distinct options — keep them consistent
+		# so ["MA","MA"] can't falsely satisfy min_select or trip max_select.
+		picks = list(dict.fromkeys(_selected_labels(selection.get(grp["group_name"]))))
+
+		if grp["selection_type"] == "Single" and len(picks) > 1:
+			frappe.throw(_("Only one option may be selected for {0}").format(grp["group_name"]))
+		if grp["is_required"] and not picks:
+			frappe.throw(_("Please select an option for {0}").format(grp["group_name"]))
+		if not picks:
+			continue  # optional group left blank -> not engaged
+
+		if grp["min"] and len(picks) < grp["min"]:
+			frappe.throw(_("Select at least {0} option(s) for {1}").format(grp["min"], grp["group_name"]))
+		if grp["max"] and len(picks) > grp["max"]:
+			frappe.throw(_("Select at most {0} option(s) for {1}").format(grp["max"], grp["group_name"]))
+
+		valid_labels = {o["label"] for o in grp["options"]}
+		for label in picks:
+			if label not in valid_labels:
+				frappe.throw(_("{0} is not a valid option for {1}").format(label, grp["group_name"]))
+
+		# Accumulate in configuration order, not the order the client sent them.
+		chosen = []
+		for opt in grp["options"]:
+			if opt["label"] in picks:
+				total_delta += flt(opt["price_delta"])
+				note_parts.append(opt["label"])
+				chosen.append(opt["label"])
+		validated[grp["group_name"]] = chosen
+
+	rate = flt(flt(base_rate) + flt(total_delta))
+	note = MODIFIER_SEP.join(note_parts)
+	return rate, validated, note
+
+
 def _session_dict(doc):
 	"""Serialize a POS Table Session for the POS frontend."""
 	return {
@@ -216,14 +349,44 @@ def session_active(pos_profile=None):
 
 
 @frappe.whitelist()
-def session_add_item(session, item_code, qty=1, notes=""):
-	"""Cashier adds an item to an open table session. Rate resolved server-side."""
+def get_item_modifiers(item_code=None):
+	"""Resolved modifier groups for the POS menu. One item's groups when
+	item_code is given, else the full {item_code: groups} map for every item
+	that has any. Staff-only (whitelisted, NOT allow_guest) — do not leak the
+	menu/price structure to guests. price_delta is for display only; the line
+	rate is always re-resolved server-side at add time."""
+	if item_code:
+		return _resolve_item_modifiers(item_code)
+
+	parents = frappe.get_all(
+		"POS Item Modifier",
+		filters={"parenttype": "Item", "parentfield": "custom_modifier_groups"},
+		pluck="parent",
+	)
+	out = {}
+	for parent in set(parents):
+		groups = _resolve_item_modifiers(parent)
+		if groups:
+			out[parent] = groups
+	return out
+
+
+@frappe.whitelist()
+def session_add_item(session, item_code, qty=1, notes="", modifiers=None):
+	"""Cashier adds an item to an open table session. Rate resolved server-side.
+
+	`modifiers` is the client's group->label(s) selection (dict or JSON string).
+	The line rate is base rate + server-side option deltas; the selection summary
+	is folded into the line note (so distinct selections form distinct lines and
+	flow to the KOT). `modifiers=None` reproduces the un-modified behaviour."""
 	doc = frappe.get_doc("POS Table Session", session)
 	if doc.status != "Open":
 		frappe.throw(_("Table session is not open"))
-	rate = _resolve_rate(item_code, doc.pos_profile)
+	base_rate = _resolve_rate(item_code, doc.pos_profile)
+	rate, _validated, mod_note = _price_with_modifiers(item_code, base_rate, modifiers)
+	line_note = MODIFIER_SEP.join(p for p in [mod_note, cstr(notes)] if p)
 	item_name = frappe.db.get_value("Item", item_code, "item_name") or item_code
-	_session_add_line(doc, item_code, item_name, flt(qty) or 1, rate, notes=cstr(notes))
+	_session_add_line(doc, item_code, item_name, flt(qty) or 1, rate, notes=line_note)
 	doc.save(ignore_permissions=True)
 	frappe.db.commit()
 	_publish(TABLE_EVENT, {"table": doc.table, "session": doc.name, "action": "items"})

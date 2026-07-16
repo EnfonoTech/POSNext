@@ -27,6 +27,9 @@ def after_install():
 		# Setup default print format for POS Profiles
 		setup_default_print_format()
 
+		# Seed sample restaurant modifier groups on fresh installs.
+		seed_restaurant_modifiers()
+
 		# Clear cache to ensure changes take effect
 		frappe.clear_cache()
 		frappe.db.commit()
@@ -107,6 +110,31 @@ def setup_default_print_format(quiet=False):
 	except Exception as e:
 		log_message(f"Error setting up default print format: {str(e)}", level="error")
 		frappe.log_error(title="Default Print Format Setup Error", message=frappe.get_traceback())
+
+
+def seed_restaurant_modifiers(quiet=False):
+	"""Run the idempotent restaurant-modifier seed on fresh installs.
+
+	The seed lives in pos_next/patches/v2_0_0/seed_restaurant_modifiers and is
+	registered in patches.txt for the upgrade (migrate) path. But `install-app`
+	marks every patch as completed WITHOUT running it
+	(frappe/installer.py set_all_patches_as_completed), so on a brand-new site the
+	seed patch never fires. Call its idempotent execute() from after_install so
+	the SEED SAMPLES (Size / Extras groups) hold on fresh installs too. Re-running
+	is a clean no-op — the patch is guarded by existence checks throughout.
+
+	Args:
+		quiet (bool): If True, suppress detailed logs
+	"""
+	try:
+		from pos_next.patches.v2_0_0 import seed_restaurant_modifiers as seed
+
+		seed.execute()
+		if not quiet:
+			log_message("Seeded sample restaurant modifier groups", level="info")
+	except Exception as e:
+		log_message(f"Error seeding restaurant modifiers: {str(e)}", level="error")
+		frappe.log_error(title="Restaurant Modifier Seed Error", message=frappe.get_traceback())
 
 
 def log_message(message, level="info", indent=0):
