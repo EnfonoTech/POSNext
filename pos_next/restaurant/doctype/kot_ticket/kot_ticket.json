@@ -1,0 +1,146 @@
+{
+ "actions": [],
+ "autoname": "naming_series:",
+ "creation": "2026-07-16 21:45:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "table",
+  "table_label",
+  "session",
+  "column_break_1",
+  "pos_profile",
+  "customer_name",
+  "status",
+  "ordered_at",
+  "section_break_1",
+  "items"
+ ],
+ "fields": [
+  {
+   "default": "KOT-.YYYY.-",
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Series",
+   "options": "KOT-.YYYY.-"
+  },
+  {
+   "fieldname": "table",
+   "fieldtype": "Link",
+   "label": "Table",
+   "options": "POS Table"
+  },
+  {
+   "fieldname": "table_label",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Table Label"
+  },
+  {
+   "fieldname": "session",
+   "fieldtype": "Link",
+   "label": "Table Session",
+   "options": "POS Table Session"
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "pos_profile",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "POS Profile",
+   "options": "POS Profile"
+  },
+  {
+   "fieldname": "customer_name",
+   "fieldtype": "Data",
+   "label": "Customer Name"
+  },
+  {
+   "default": "Open",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "options": "Open\nCompleted\nCancelled"
+  },
+  {
+   "fieldname": "ordered_at",
+   "fieldtype": "Datetime",
+   "in_list_view": 1,
+   "label": "Ordered At"
+  },
+  {
+   "fieldname": "section_break_1",
+   "fieldtype": "Section Break",
+   "label": "Items"
+  },
+  {
+   "fieldname": "items",
+   "fieldtype": "Table",
+   "label": "Items",
+   "options": "KOT Ticket Item"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-07-16 21:45:00.000000",
+ "modified_by": "Administrator",
+ "module": "Restaurant",
+ "name": "KOT Ticket",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Sales Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Nexus POS Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "POSNext Cashier",
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

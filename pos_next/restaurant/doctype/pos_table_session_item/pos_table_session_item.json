@@ -1,0 +1,92 @@
+{
+ "actions": [],
+ "creation": "2026-07-16 21:45:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "item_code",
+  "item_name",
+  "qty",
+  "rate",
+  "amount",
+  "notes",
+  "sent_to_kitchen",
+  "source",
+  "kot"
+ ],
+ "fields": [
+  {
+   "fieldname": "item_code",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Item Code",
+   "options": "Item",
+   "reqd": 1
+  },
+  {
+   "fieldname": "item_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Item Name"
+  },
+  {
+   "default": "1",
+   "fieldname": "qty",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Qty"
+  },
+  {
+   "fieldname": "rate",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Rate"
+  },
+  {
+   "fieldname": "amount",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Amount",
+   "read_only": 1
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Small Text",
+   "label": "Notes"
+  },
+  {
+   "default": "0",
+   "fieldname": "sent_to_kitchen",
+   "fieldtype": "Check",
+   "label": "Sent to Kitchen",
+   "read_only": 1
+  },
+  {
+   "default": "Counter",
+   "fieldname": "source",
+   "fieldtype": "Select",
+   "label": "Source",
+   "options": "Counter\nPhone"
+  },
+  {
+   "fieldname": "kot",
+   "fieldtype": "Link",
+   "label": "KOT Ticket",
+   "options": "KOT Ticket",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-07-16 21:45:00.000000",
+ "modified_by": "Administrator",
+ "module": "Restaurant",
+ "name": "POS Table Session Item",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}
