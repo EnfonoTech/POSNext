@@ -17,16 +17,12 @@ const ALLOWED_LOCALES_KEY = "pos_next_allowed_locales";
 /** Track if initial language fetch from server has been attempted */
 let serverLanguageFetched = false;
 
-// Get flag URL from flagcdn.com
-function getFlagUrl(countryCode) {
-	if (!countryCode) return null;
-	return `https://flagcdn.com/h24/${countryCode.toLowerCase()}.png`;
-}
-
-// Get flag SVG URL from flagcdn.com
-function getFlagUrlSvg(countryCode) {
-	if (!countryCode) return null;
-	return `https://flagcdn.com/${countryCode.toLowerCase()}.svg`;
+// Convert ISO country code to a flag emoji (regional indicator symbols).
+// Rendered locally — no external CDN dependency.
+function getFlagEmoji(countryCode) {
+	if (!countryCode) return "🏳️";
+	const codePoints = [...countryCode.toUpperCase()].map((char) => 127397 + char.charCodeAt(0));
+	return String.fromCodePoint(...codePoints);
 }
 
 // Supported languages configuration
@@ -167,8 +163,7 @@ export function useLocale() {
 		const config = SUPPORTED_LOCALES[locale.value] || SUPPORTED_LOCALES.en;
 		return {
 			...config,
-			flagUrl: getFlagUrl(config.countryCode),
-			flagUrlSvg: getFlagUrlSvg(config.countryCode),
+			flagEmoji: getFlagEmoji(config.countryCode),
 		};
 	});
 
@@ -289,7 +284,7 @@ export function useLocale() {
 		initLocale();
 	});
 
-	// Build supported locales with flag URLs, filtered by allowed locales from POS Settings
+	// Build supported locales with flag emojis, filtered by allowed locales from POS Settings
 	const supportedLocales = computed(() => {
 		const result = {};
 		const allowed = allowedLocales.value;
@@ -299,8 +294,7 @@ export function useLocale() {
 			if (allowed === null || allowed.length === 0 || allowed.includes(code)) {
 				result[code] = {
 					...config,
-					flagUrl: getFlagUrl(config.countryCode),
-					flagUrlSvg: getFlagUrlSvg(config.countryCode),
+					flagEmoji: getFlagEmoji(config.countryCode),
 				};
 			}
 		}

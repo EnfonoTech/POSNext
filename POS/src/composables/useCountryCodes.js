@@ -37,8 +37,7 @@ export function useCountryCodes() {
 				name,
 				code: info.code?.toUpperCase() || "",
 				isd: info.isd,
-				flagUrl: `https://flagcdn.com/${info.code}.svg`,
-				// Fallback emoji flag using regional indicator symbols
+				// Emoji flag using regional indicator symbols (no external CDN)
 				flagEmoji: getCountryFlagEmoji(info.code),
 			}))
 			.sort((a, b) => a.name.localeCompare(b.name));

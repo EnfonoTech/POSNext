@@ -2,9 +2,9 @@ from pos_next.utils import get_build_version
 
 app_name = "pos_next"
 app_title = "POS Next"
-app_publisher = "BrainWise"
+app_publisher = "EnfonoTech"
 app_description = "POS built on ERPNext that brings together real-time billing, stock management, multi-user access, offline mode, and direct ERP integration. Run your store or restaurant with confidence and control, while staying 100% open source."
-app_email = "support@brainwise.me"
+app_email = "sayanth@enfono.com"
 app_license = "agpl-3.0"
 
 # Apps
@@ -185,15 +185,8 @@ doc_events = {
 # ---------------
 
 scheduler_events = {
-	"hourly": [
-		"pos_next.tasks.branding_monitor.monitor_branding_integrity",
-	],
 	"daily": [
 		"pos_next.tasks.cleanup_expired_promotions.cleanup_expired_promotions",
-		"pos_next.tasks.branding_monitor.validate_all_active_sessions",
-	],
-	"monthly": [
-		"pos_next.tasks.branding_monitor.reset_tampering_counter",
 	],
 }
 

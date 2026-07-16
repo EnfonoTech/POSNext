@@ -35,9 +35,7 @@ export const useCountriesStore = defineStore("countries", () => {
 				name,
 				code: info.code?.toUpperCase() || "",
 				isd: info.isd,
-				flagUrl: `https://flagcdn.com/h24/${info.code}.png`, // Higher quality 24px height
-				flagUrlSvg: `https://flagcdn.com/${info.code}.svg`, // Vector format
-				flagEmoji: getCountryFlagEmoji(info.code),
+				flagEmoji: getCountryFlagEmoji(info.code), // Emoji flag, no external CDN
 			}))
 			.sort((a, b) => a.name.localeCompare(b.name));
 	}

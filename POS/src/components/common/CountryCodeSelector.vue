@@ -10,14 +10,7 @@
 		>
 			<!-- Flag -->
 			<div class="w-5 h-4 flex items-center justify-center flex-shrink-0">
-				<img
-					v-if="selectedCountry"
-					:src="selectedCountry.flagUrl"
-					:alt="selectedCountry.name"
-					class="w-5 h-auto rounded-sm"
-					@error="handleImageError"
-				/>
-				<span v-else-if="selectedCountry" class="text-base leading-none">
+				<span v-if="selectedCountry" class="text-base leading-none">
 					{{ selectedCountry.flagEmoji }}
 				</span>
 				<svg v-else class="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
@@ -120,12 +113,7 @@
 					>
 						<!-- Flag -->
 						<div class="w-6 h-4 flex items-center justify-center flex-shrink-0">
-							<img
-								:src="country.flagUrl"
-								:alt="country.name"
-								class="w-6 h-auto rounded-sm"
-								@error="(e) => (e.target.style.display = 'none')"
-							/>
+							<span class="text-base leading-none">{{ country.flagEmoji }}</span>
 						</div>
 
 						<!-- Country Name -->
@@ -224,12 +212,6 @@ function selectFirstFiltered() {
 	if (filteredCountries.value.length > 0) {
 		selectCountry(filteredCountries.value[0]);
 	}
-}
-
-// Handle flag image load error
-function handleImageError(event) {
-	// Hide broken image and show emoji fallback
-	event.target.style.display = "none";
 }
 
 // Close dropdown when clicking outside

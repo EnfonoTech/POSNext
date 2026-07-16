@@ -34,12 +34,9 @@
 								@click="showCountryDropdown = !showCountryDropdown"
 								class="flex items-center gap-1 w-24 ps-2 pe-1 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white hover:bg-gray-50"
 							>
-								<img
-									:src="`https://flagcdn.com/h24/${currentCountryCode}.png`"
-									:alt="currentCountryCode"
-									class="w-6 h-auto rounded-sm"
-									@error="handleFlagError"
-								/>
+								<span class="text-base leading-none">{{
+									currentCountryFlagEmoji
+								}}</span>
 								<span class="flex-1 text-start">{{
 									selectedCountryCode || "+20"
 								}}</span>
@@ -84,12 +81,9 @@
 											'bg-blue-50': selectedCountryCode === country.isd,
 										}"
 									>
-										<img
-											:src="`https://flagcdn.com/h24/${country.code.toLowerCase()}.png`"
-											:alt="country.name"
-											class="w-6 h-auto rounded-sm shadow-sm"
-											@error="(e) => (e.target.style.display = 'none')"
-										/>
+										<span class="text-base leading-none">{{
+											country.flagEmoji
+										}}</span>
 										<span class="flex-1 text-sm font-medium text-gray-700">{{
 											country.name
 										}}</span>
@@ -347,9 +341,9 @@ const show = computed({
 
 const isEditMode = computed(() => !!props.customer?.name);
 
-const currentCountryCode = computed(() => {
+const currentCountryFlagEmoji = computed(() => {
 	const country = countriesStore.countries.find((c) => c.isd === selectedCountryCode.value);
-	return country?.code.toLowerCase() || "eg";
+	return country?.flagEmoji || "🏳️";
 });
 
 const filteredCountries = computed(() => {
@@ -367,8 +361,6 @@ const filteredCountries = computed(() => {
 // =============================================================================
 // Country & Territory Methods
 // =============================================================================
-
-const handleFlagError = (e) => (e.target.style.display = "none");
 
 const selectCountry = (country) => {
 	selectedCountryCode.value = country.isd;
