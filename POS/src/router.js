@@ -49,10 +49,22 @@ router.beforeEach((to, from, next) => {
 	}
 
 	// Restaurant mode is a per-POS-Profile toggle (custom field on the open
-	// shift's profile). Read it straight off shiftState so we don't depend on a
-	// Pinia store being initialised inside the guard.
-	const isRestaurant = Number(shiftState.value?.pos_profile?.restaurant_mode) === 1;
-	const shiftOpen = !!shiftState.value?.isOpen;
+	// shift's profile). On a full page load shiftState is still empty when this
+	// guard first runs (check_opening_shift is async), so fall back to the
+	// persisted shift cache in localStorage — it survives reloads and carries the
+	// same profile doc, keeping the gate reliable instead of racy.
+	let activeProfile = shiftState.value?.pos_profile || null;
+	let shiftOpen = !!shiftState.value?.isOpen;
+	if (!activeProfile) {
+		try {
+			const cached = JSON.parse(localStorage.getItem("pos_shift_data") || "{}");
+			activeProfile = cached?.pos_profile || null;
+			shiftOpen = shiftOpen || !!activeProfile;
+		} catch (e) {
+			/* ignore malformed cache */
+		}
+	}
+	const isRestaurant = Number(activeProfile?.restaurant_mode) === 1;
 
 	// Redirect logic
 	if (to.name === "Login" && isLoggedIn) {
