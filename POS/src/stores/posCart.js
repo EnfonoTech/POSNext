@@ -1,5 +1,6 @@
 import { useInvoice } from "@/composables/useInvoice";
 import { usePOSOffersStore } from "@/stores/posOffers";
+import { usePOSRestaurantStore } from "@/stores/posRestaurant";
 import { usePOSSettingsStore } from "@/stores/posSettings";
 import { usePOSShiftStore } from "@/stores/posShift";
 import { parseError } from "@/utils/errorHandler";
@@ -111,6 +112,10 @@ export const usePOSCartStore = defineStore("posCart", () => {
 
 	const offersStore = usePOSOffersStore();
 	const settingsStore = usePOSSettingsStore();
+	// Restaurant table-context store (Q3): the live order stays in the per-device
+	// draft; this store only tracks which table the cart is bound to so clearing the
+	// cart (checkout / clear / hold) also frees the table. Retail never sets a table.
+	const restaurantStore = usePOSRestaurantStore();
 
 	// Additional cart state
 	const pendingItem = ref(null);
@@ -203,12 +208,17 @@ export const usePOSCartStore = defineStore("posCart", () => {
 	 * Wraps useInvoice.updateItemQuantity to enforce stock limits
 	 * when the user clicks +/- or types a new quantity.
 	 */
-	function updateItemQuantity(itemCode, quantity, uom = null) {
-		const item = uom
-			? invoiceItems.value.find((i) => i.item_code === itemCode && i.uom === uom)
-			: invoiceItems.value.find((i) => i.item_code === itemCode);
+	function updateItemQuantity(itemCode, quantity, uom = null, lineUid = null) {
+		// Restaurant modifier lines (Q1 line_uid): route by the unique line when the
+		// cart carries distinct modifier variants of one item+uom. Retail passes no
+		// lineUid, so this collapses to the original item_code(+uom) match.
+		const item = lineUid
+			? invoiceItems.value.find((i) => i.line_uid === lineUid)
+			: uom
+				? invoiceItems.value.find((i) => i.item_code === itemCode && i.uom === uom)
+				: invoiceItems.value.find((i) => i.item_code === itemCode);
 
-		if (!item) return baseUpdateItemQuantity(itemCode, quantity, uom);
+		if (!item) return baseUpdateItemQuantity(itemCode, quantity, uom, lineUid);
 
 		const newQty = Number.parseFloat(quantity) || 1;
 
@@ -225,7 +235,7 @@ export const usePOSCartStore = defineStore("posCart", () => {
 			}
 		}
 
-		baseUpdateItemQuantity(itemCode, quantity, uom);
+		baseUpdateItemQuantity(itemCode, quantity, uom, lineUid);
 	}
 
 	function clearCart() {
@@ -240,6 +250,10 @@ export const usePOSCartStore = defineStore("posCart", () => {
 		appliedCoupon.value = null;
 		currentDraftId.value = null;
 		targetDoctype.value = "Sales Invoice";
+		// Restaurant (Q3): clearing the cart (checkout / manual clear / hold) frees the
+		// table binding too, so the floor map shows the table available again. No-op for
+		// retail (activeTable stays null).
+		restaurantStore.clearActiveTable();
 
 		// Reset offer processing state
 		offerProcessingState.value.lastCartHash = "";
@@ -1246,7 +1260,12 @@ export const usePOSCartStore = defineStore("posCart", () => {
 	 * @param {string|null} uom - Optional UOM to match
 	 * @returns {Object|undefined} Cart item or undefined
 	 */
-	function findCartItem(itemCode, uom = null) {
+	function findCartItem(itemCode, uom = null, lineUid = null) {
+		// Restaurant modifier lines (Q1 line_uid): a line_uid uniquely identifies one
+		// cart line even when item_code+uom collide. Retail passes no lineUid.
+		if (lineUid) {
+			return invoiceItems.value.find((item) => item.line_uid === lineUid);
+		}
 		return invoiceItems.value.find(
 			(item) => item.item_code === itemCode && (!uom || item.uom === uom)
 		);

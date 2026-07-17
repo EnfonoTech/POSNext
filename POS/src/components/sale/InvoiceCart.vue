@@ -916,7 +916,8 @@
 						item.item_code +
 						'-' +
 						(item.uom || '') +
-						(item.is_free_item ? '-free' : '')
+						(item.is_free_item ? '-free' : '') +
+						(item.line_uid ? '-' + item.line_uid : '')
 					"
 					@click="item.is_free_item ? null : openEditDialog(item)"
 					:class="[
@@ -1020,7 +1021,7 @@
 								<button
 									v-if="!item.is_free_item"
 									type="button"
-									@click.stop="$emit('remove-item', item.item_code, item.uom)"
+									@click.stop="$emit('remove-item', item.item_code, item.uom, item.line_uid)"
 									class="text-gray-400 hover:text-red-600 active:text-red-700 transition-colors flex-shrink-0 p-0.5 -m-0.5 touch-manipulation active:scale-90"
 									:aria-label="__('Remove {0}', [item.item_name])"
 									:title="__('Remove item')"
@@ -1039,6 +1040,30 @@
 										/>
 									</svg>
 								</button>
+							</div>
+
+							<!-- Restaurant: modifier note + "sent to kitchen" marker.
+							     Only renders for dine-in lines that carry modifier context
+							     or have been fired; retail lines have neither, so nothing
+							     new is shown. -->
+							<div
+								v-if="item.modifier_note || item.sent_to_kitchen"
+								class="flex items-center gap-1.5 mb-0.5 flex-wrap"
+							>
+								<span
+									v-if="item.modifier_note"
+									class="text-[10px] sm:text-xs text-gray-500 truncate"
+									:title="item.modifier_note"
+								>
+									{{ item.modifier_note }}
+								</span>
+								<span
+									v-if="item.sent_to_kitchen"
+									class="inline-flex items-center px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded-full text-[9px] font-bold flex-shrink-0"
+									:title="__('Sent to kitchen')"
+								>
+									🔥 {{ __("Sent") }}
+								</span>
 							</div>
 
 							<!-- Single Row: Quantity Counter, UOM, Price & Total -->
@@ -1379,6 +1404,19 @@
 				</div>
 			</div>
 
+			<!-- Restaurant: Send to Kitchen (fires unsent lines as a KOT). Gated on
+			     dine-in mode + presence of unsent lines; never rendered for retail. -->
+			<button
+				v-if="isRestaurant && items.length > 0"
+				type="button"
+				@click="$emit('send-kitchen')"
+				:disabled="!hasUnsentKitchenLines"
+				class="w-full mb-1.5 py-2.5 px-3 rounded-lg font-bold text-xs text-white transition-all flex items-center justify-center touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed bg-amber-500 hover:bg-amber-600 active:bg-amber-700 shadow-lg active:scale-[0.98]"
+				:aria-label="__('Send to kitchen')"
+			>
+				<span>🔥 {{ __("Send to Kitchen") }}</span>
+			</button>
+
 			<!-- Action Buttons -->
 			<div class="flex gap-1.5">
 				<!-- Checkout Button (Primary - 50% width) -->
@@ -1535,6 +1573,12 @@ const props = defineProps({
 		type: Array,
 		default: () => [],
 	},
+	// Restaurant dine-in mode (shiftStore.isRestaurant). Gates the Send-to-Kitchen
+	// action; false for retail so the cart renders byte-for-byte as before.
+	isRestaurant: {
+		type: Boolean,
+		default: false,
+	},
 });
 
 /**
@@ -1563,8 +1607,15 @@ const emit = defineEmits([
 	"show-history", // () - Show invoice history
 	"show-return", // () - Open return invoice dialog
 	"close-shift", // () - Close current shift
+	"send-kitchen", // () - Restaurant: fire unsent cart lines to the kitchen (KOT)
 	// "create-sales-order", // () - Create Sales Order // Removed as per instruction
 ]);
+
+// Restaurant: are there cart lines not yet fired to the kitchen? Gates the
+// Send-to-Kitchen button so re-tapping with nothing new is a visible no-op.
+const hasUnsentKitchenLines = computed(() =>
+	props.items.some((i) => !i.sent_to_kitchen)
+);
 
 // Cart sort composable (must be after defineProps)
 const {
@@ -2016,7 +2067,7 @@ function incrementQuantity(item) {
 
 	const step = getSmartStep(item.quantity);
 	const newQty = Math.round((item.quantity + step) * 10000) / 10000;
-	emit("update-quantity", item.item_code, newQty, item.uom);
+	emit("update-quantity", item.item_code, newQty, item.uom, item.line_uid);
 }
 
 /**
@@ -2034,9 +2085,9 @@ function decrementQuantity(item) {
 
 	if (newQty <= 0) {
 		// If quantity would be 0 or negative, remove the item
-		emit("remove-item", item.item_code, item.uom);
+		emit("remove-item", item.item_code, item.uom, item.line_uid);
 	} else {
-		emit("update-quantity", item.item_code, newQty, item.uom);
+		emit("update-quantity", item.item_code, newQty, item.uom, item.line_uid);
 	}
 }
 
@@ -2058,10 +2109,10 @@ function updateQuantity(item, value) {
 	if (isNaN(qty)) return;
 
 	// If quantity is zero or negative, remove the item from the cart
-	if (qty <= 0) return emit("remove-item", item.item_code, item.uom);
+	if (qty <= 0) return emit("remove-item", item.item_code, item.uom, item.line_uid);
 
 	// For positive numbers, update quantity immediately (no rounding here while typing)
-	emit("update-quantity", item.item_code, qty, item.uom);
+	emit("update-quantity", item.item_code, qty, item.uom, item.line_uid);
 }
 
 /**
@@ -2076,12 +2127,12 @@ function handleQuantityBlur(item) {
 	// When user leaves the input field, round and validate
 	if (!item.quantity || item.quantity <= 0) {
 		// If quantity is 0 or invalid, remove the item
-		emit("remove-item", item.item_code, item.uom);
+		emit("remove-item", item.item_code, item.uom, item.line_uid);
 	} else {
 		// Round to 4 decimal places for consistency
 		const roundedQty = Math.round(item.quantity * 10000) / 10000;
 		if (roundedQty !== item.quantity) {
-			emit("update-quantity", item.item_code, roundedQty, item.uom);
+			emit("update-quantity", item.item_code, roundedQty, item.uom, item.line_uid);
 		}
 	}
 }

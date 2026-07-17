@@ -209,6 +209,29 @@
 					</button>
 				</template>
 				<template #additional-actions>
+					<!-- Restaurant table-context chip: shows the table the cart is bound
+					     to (or an explicit retail-sale state) with a change-table link.
+					     Gated on restaurant mode; retail terminals never render it. -->
+					<div
+						v-if="shiftStore.isRestaurant"
+						class="px-4 py-2.5 border-b border-gray-100"
+					>
+						<div class="flex items-center gap-2 text-sm">
+							<svg class="w-4 h-4 text-amber-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+							</svg>
+							<span v-if="restaurantStore.activeTable" class="font-semibold text-amber-700 truncate">
+								{{ __("Table") }}: {{ restaurantStore.activeTable }}
+							</span>
+							<span v-else class="text-gray-500">{{ __("No table (retail sale)") }}</span>
+						</div>
+						<router-link
+							to="/tables"
+							class="mt-1 inline-block text-xs text-blue-600 hover:underline"
+						>
+							{{ restaurantStore.activeTable ? __("Change table") : __("Choose table") }}
+						</router-link>
+					</div>
 					<button
 						v-if="canAccessShiftActions"
 						@click="handleCloseShift()"
@@ -388,10 +411,16 @@
 								:currency="shiftStore.profileCurrency"
 								:applied-offers="cartStore.appliedOffers"
 								:warehouses="profileWarehouses"
-								@update-quantity="cartStore.updateItemQuantity"
-								@remove-item="
-									(itemCode, uom) => cartStore.removeItem(itemCode, uom)
+								:is-restaurant="shiftStore.isRestaurant"
+								@update-quantity="
+									(itemCode, qty, uom, lineUid) =>
+										cartStore.updateItemQuantity(itemCode, qty, uom, lineUid)
 								"
+								@remove-item="
+									(itemCode, uom, lineUid) =>
+										cartStore.removeItem(itemCode, uom, lineUid)
+								"
+								@send-kitchen="handleSendKitchen"
 								@select-customer="handleCustomerSelected"
 								@create-customer="handleCreateCustomer"
 								@edit-customer="handleEditCustomer"
@@ -524,6 +553,17 @@
 				@update-additional-discount="handleAdditionalDiscountUpdate"
 				@show-offers="uiStore.showOffersDialog = true"
 				@show-coupon="uiStore.showCouponDialog = true"
+			/>
+
+			<!-- Restaurant: modifier picker (shared component). Opens on add of an item
+			     that has modifier groups; on confirm the line is priced base+delta and
+			     added to the main cart. Only mounted in restaurant mode. -->
+			<ModifierDialog
+				v-if="shiftStore.isRestaurant"
+				v-model="showModifierDialog"
+				:item-code="pendingModifierItem?.item_code || ''"
+				:groups="modifierGroups"
+				@confirm="handleModifierConfirm"
 			/>
 
 			<!-- Customer Selection Dialog -->
@@ -1028,6 +1068,7 @@ import CreateCustomerDialog from "@/components/sale/CreateCustomerDialog.vue";
 import CustomerDialog from "@/components/sale/CustomerDialog.vue";
 import DraftInvoicesDialog from "@/components/sale/DraftInvoicesDialog.vue";
 import InvoiceCart from "@/components/sale/InvoiceCart.vue";
+import ModifierDialog from "@/components/sale/ModifierDialog.vue";
 import InvoiceHistoryDialog from "@/components/sale/InvoiceHistoryDialog.vue";
 import ItemSelectionDialog from "@/components/sale/ItemSelectionDialog.vue";
 import ItemsSelector from "@/components/sale/ItemsSelector.vue";
@@ -1062,6 +1103,7 @@ import { qzConnected, connect as qzConnect, disconnect as qzDisconnect } from "@
 import { Button, Dialog, createResource } from "frappe-ui";
 import { call } from "@/utils/apiWrapper";
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
+import { useRoute } from "vue-router";
 import { useToast } from "@/composables/useToast";
 
 import { useCustomerSearchStore } from "@/stores/customerSearch";
@@ -1070,6 +1112,7 @@ import { useStockStore } from "@/stores/stock";
 // Pinia Stores
 import { usePOSCartStore } from "@/stores/posCart";
 import { usePOSDraftsStore } from "@/stores/posDrafts";
+import { usePOSRestaurantStore } from "@/stores/posRestaurant";
 import { usePOSSettingsStore } from "@/stores/posSettings";
 import { usePOSShiftStore } from "@/stores/posShift";
 import { usePOSSyncStore } from "@/stores/posSync";
@@ -1084,6 +1127,7 @@ const shiftStore = usePOSShiftStore();
 const uiStore = usePOSUIStore();
 const offlineStore = usePOSSyncStore();
 const draftsStore = usePOSDraftsStore();
+const restaurantStore = usePOSRestaurantStore();
 const posSettingsStore = usePOSSettingsStore();
 const itemStore = useItemSearchStore();
 const stockStore = useStockStore();
@@ -1134,6 +1178,15 @@ const logoutAfterClose = ref(false);
 const editCustomer = ref(null); // Customer being edited (null for create mode)
 const showClearCacheDialog = ref(false);
 const clearCacheOverlayRef = ref(null);
+
+// ─── Restaurant dine-in (gated on shiftStore.isRestaurant) ───────────────────
+const route = useRoute();
+// Modifier picker state
+const showModifierDialog = ref(false);
+const pendingModifierItem = ref(null); // the item awaiting a modifier selection
+const modifierGroups = ref([]); // groups for the pending item (passed to the dialog)
+// The per-item modifier-group map lives in the posRestaurant store (survives
+// remounts — F1); read it via restaurantStore.modifierGroupsFor / .loadModifierGroupsMap.
 
 // Debounce timer for offer reapplication
 const offerReapplyTimer = ref(null);
@@ -1417,6 +1470,16 @@ onMounted(async () => {
 			log.debug("Skipping init — already initialized (remount)");
 			startActivityTracking();
 			updateLayoutBounds();
+			// Restaurant: a remount via /sell?table=<name> (e.g. from the floor
+			// picker) must still rebind the table even though heavy init is skipped —
+			// the query watcher only fires on a change, not on this initial value.
+			// The modifier map lives in the store and survives this remount, but ensure
+			// it is loaded (no-op if already populated) before rebinding the table so the
+			// picker works even when heavy init was skipped (F1).
+			if (shiftStore.isRestaurant) {
+				await restaurantStore.loadModifierGroupsMap();
+				await restoreTableFromRoute();
+			}
 			return;
 		}
 
@@ -1499,9 +1562,27 @@ onMounted(async () => {
 		// Load tax rules (depends on settings being loaded)
 		await cartStore.loadTaxRules(shiftStore.profileName, posSettingsStore.settings);
 
+		// Restaurant dine-in: preload the modifier-group map (so item taps decide
+		// synchronously) and restore any table context from the ?table= deep-link.
+		if (shiftStore.isRestaurant) {
+			await restaurantStore.loadModifierGroupsMap({ force: true });
+			await restoreTableFromRoute();
+		}
+
 		_initializedKey = `${shiftStore.profileName}::${shiftStore.currentShift?.name}`;
 	}
 });
+
+// Restaurant: honour in-app navigation to /sell?table=<name> (e.g. from the floor
+// map) by (re)binding the cart to that table. Retail never carries a table query.
+watch(
+	() => route.query?.table,
+	(table) => {
+		if (shiftStore.isRestaurant && typeof table === "string" && table) {
+			openTableContext(table);
+		}
+	}
+);
 
 watch(
 	() => shiftStore.hasOpenShift,
@@ -1891,6 +1972,28 @@ function handleItemSelected(item, autoAdd = false) {
 		return;
 	}
 
+	// Restaurant dine-in: intercept items that offer modifier groups so the cashier
+	// picks options before the line is added. Pricing + validation are server calls,
+	// so this path is online-only (Q5 LOCKED). Retail (isRestaurant false) and items
+	// without modifier groups fall straight through to the unchanged flow below.
+	if (shiftStore.isRestaurant && !item.has_variants) {
+		const groups = restaurantStore.modifierGroupsFor(item.item_code);
+		if (groups.length) {
+			if (offlineStore.isOffline) {
+				showWarning(
+					__("Modifier items need an internet connection. Reconnect to add {0}.", [
+						item.item_name || item.item_code,
+					])
+				);
+				return;
+			}
+			pendingModifierItem.value = item;
+			modifierGroups.value = groups;
+			showModifierDialog.value = true;
+			return;
+		}
+	}
+
 	// Early out-of-stock guard — prevent opening dialogs for zero-stock items
 	// Full qty validation happens in cartStore.addItem()
 	if (
@@ -1942,6 +2045,106 @@ function handleItemSelected(item, autoAdd = false) {
 			error.message,
 			__("Item: {0}", [item.item_code])
 		);
+	}
+}
+
+/**
+ * Restaurant: the cashier confirmed a modifier selection in ModifierDialog. Fetch
+ * the server-authoritative delta + note (Q2 LOCKED: delta-only), fold the delta onto
+ * the cart's own base rate, and add the line with a fresh line_uid + modifier fields.
+ */
+async function handleModifierConfirm(selection) {
+	const item = pendingModifierItem.value;
+	if (!item) return;
+	try {
+		// Orchestration (server delta-only pricing + base+delta line construction)
+		// lives in the posRestaurant store so it stays unit-testable.
+		await restaurantStore.confirmModifier(item, selection);
+	} catch (error) {
+		uiStore.showError(
+			__("Could not price modifiers"),
+			error?.messages?.[0] || error?.message || __("Please try again."),
+			__("Item: {0}", [item.item_code])
+		);
+	} finally {
+		pendingModifierItem.value = null;
+		modifierGroups.value = [];
+	}
+}
+
+/**
+ * Restaurant: fire the cart's unsent lines to the kitchen as a KOT, then mark those
+ * lines sent so they are never silently re-fired, and persist the draft so the "sent"
+ * flag survives a table switch / reload. Online-only (Q5 LOCKED).
+ */
+async function handleSendKitchen() {
+	if (offlineStore.isOffline) {
+		showWarning(__("Send to Kitchen needs an internet connection"));
+		return;
+	}
+	try {
+		// select -> kot_send -> mark sent -> persist draft, all in the store so the
+		// orchestration is unit-testable. A bound table is required (item 5): without
+		// one the sent-markers have no draft to persist to and a reload could re-fire.
+		const res = await restaurantStore.sendKitchen();
+		if (!res.ok) {
+			if (res.reason === "no-table") {
+				showWarning(__("Bind a table before sending to the kitchen"));
+			} else if (res.reason === "nothing-new") {
+				showWarning(__("Nothing new to send to the kitchen"));
+			}
+			return;
+		}
+		showSuccess(__("Sent to kitchen: {0}", [res.kot]));
+	} catch (error) {
+		uiStore.showError(
+			__("Could not send to kitchen"),
+			error?.messages?.[0] || error?.message || __("Please try again.")
+		);
+	}
+}
+
+/**
+ * Restaurant: bind the main cart to a table. Mirrors handleLoadDraft's save-then-load
+ * so switching tables never loses the current order: save the current cart to its
+ * table draft first (abort on failure), then load the target table's draft or start
+ * an empty cart bound to it. The live order IS the draft (Q3/Q4 LOCKED).
+ */
+async function openTableContext(table) {
+	try {
+		// The save-then-load / abort-on-save-failure orchestration + Q3 presence
+		// session live in the posRestaurant store (unit-testable). Offer reapplication
+		// and cart-hash bookkeeping are SFC watcher concerns, so they finish here.
+		const res = await restaurantStore.openTable(table, {
+			online: !offlineStore.isOffline,
+		});
+		if (!res.ok) {
+			if (res.reason === "save-failed") {
+				showError(
+					__("Failed to save the current table's order. Switch cancelled to prevent data loss.")
+				);
+			}
+			return;
+		}
+		if (res.loaded) {
+			if (cartStore.appliedOffers.length > 0) {
+				await cartStore.reapplyOffer(shiftStore.currentProfile);
+			}
+			previousCartHash = computeCartHash();
+		} else {
+			previousCartHash = "";
+		}
+	} catch (error) {
+		log.error("Error opening table context:", error);
+		showError(__("Failed to open the table"));
+	}
+}
+
+/** Restaurant: restore the table binding from the ?table= deep-link (survives reload). */
+async function restoreTableFromRoute() {
+	const table = route.query?.table;
+	if (typeof table === "string" && table) {
+		await openTableContext(table);
 	}
 }
 
@@ -2147,6 +2350,10 @@ async function handlePaymentCompleted(paymentData) {
 			uiStore.setLastOfflinePrintDoc(offlinePrintDoc);
 			cacheOfflineReceiptPayload(offlineReceiptName, offlinePrintDoc);
 			uiStore.showPaymentDialog = false;
+			// Q3: free the table's presence session so the floor shows it available.
+			// Offline has no submitted invoice to settle against, so cancel it (no-op
+			// for retail / when no session is held).
+			await restaurantStore.cancelSession();
 			cartStore.clearCart();
 			// Reset cart hash after successful payment
 			previousCartHash = "";
@@ -2218,6 +2425,9 @@ async function handlePaymentCompleted(paymentData) {
 				const paidAmount = paymentData.paid_amount || invoiceTotal;
 
 				uiStore.showPaymentDialog = false;
+				// Q3: settle the table's presence session against the submitted invoice
+				// so the floor frees up (no-op for retail / when no session is held).
+				await restaurantStore.settleSession(invoiceName);
 				cartStore.clearCart();
 				// Reset cart hash after successful payment
 				previousCartHash = "";
@@ -2280,7 +2490,11 @@ function handleClearCart() {
 	uiStore.showClearCartDialog = true;
 }
 
-function confirmClearCart() {
+async function confirmClearCart() {
+	// Q3: an explicit clear voids the table's order, so cancel its presence session
+	// too (no-op for retail / when no session is held). Runs before clearCart(),
+	// which resets the local table pointer.
+	await restaurantStore.cancelSession();
 	cartStore.clearCart();
 	// Reset cart hash when cart is cleared
 	previousCartHash = "";
@@ -2439,7 +2653,8 @@ async function handleSaveDraft() {
 		cartStore.customer,
 		cartStore.posProfile,
 		cartStore.appliedOffers,
-		cartStore.currentDraftId
+		cartStore.currentDraftId,
+		restaurantStore.activeTable // dine-in: tag the hold with its table (Q4)
 	);
 	if (savedDraft) {
 		cartStore.clearCart();
@@ -2457,7 +2672,8 @@ async function handleLoadDraft(draft) {
 				cartStore.customer,
 				cartStore.posProfile,
 				cartStore.appliedOffers,
-				cartStore.currentDraftId
+				cartStore.currentDraftId,
+				restaurantStore.activeTable // dine-in: preserve the current table tag (Q4)
 			);
 
 			if (!saved) {
@@ -2475,6 +2691,10 @@ async function handleLoadDraft(draft) {
 		cartStore.invoiceItems = draftData.items;
 		cartStore.setCustomer(draftData.customer);
 		cartStore.currentDraftId = draft.draft_id; // Set current draft ID
+		// Dine-in: rebind the table this draft belongs to (retail holds carry none).
+		if (draftData.table) {
+			restaurantStore.setActiveTable(draftData.table);
+		}
 
 		// Rebuild incremental cache to recalculate totals
 		cartStore.rebuildIncrementalCache();

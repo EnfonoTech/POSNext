@@ -372,6 +372,23 @@ def get_item_modifiers(item_code=None):
 
 
 @frappe.whitelist()
+def get_modifier_selection(item_code, modifiers=None):
+	"""Server-authoritative, DELTA-ONLY modifier pricing for the dine-in main cart.
+
+	The main cart owns the base rate (Q2 LOCKED: delta-only) — this endpoint only
+	returns the validated modifier contribution so there is never a second base-price
+	source of truth. Reuses _price_with_modifiers with base 0, so the returned "rate"
+	IS the summed option deltas, and it inherits the full validation (required / min /
+	max / single / membership / disabled group+option). Staff-only (whitelisted, NOT
+	allow_guest), matching get_item_modifiers.
+
+	Returns {delta, note, validated}. An empty/None selection with no required group
+	returns {delta 0, note "", validated {}}."""
+	delta, validated, note = _price_with_modifiers(item_code, 0, modifiers)
+	return {"delta": flt(delta), "note": note, "validated": validated}
+
+
+@frappe.whitelist()
 def session_add_item(session, item_code, qty=1, notes="", modifiers=None):
 	"""Cashier adds an item to an open table session. Rate resolved server-side.
 

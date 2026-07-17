@@ -217,8 +217,20 @@ export function useInvoice() {
 	// Actions
 	function addItem(item, quantity = 1) {
 		const itemUom = item.uom || item.stock_uom;
+		// Restaurant modifier lines (Q1 LOCKED: line_uid): two differently-modified
+		// instances of the same item+uom must stay distinct lines, so the merge is
+		// gated on a modifier signature (the server-authoritative modifier_note) AND
+		// excludes lines already fired to the kitchen (a re-order of a sent item is a
+		// fresh unsent line, mirroring the server _session_add_line rule). This is a
+		// strict no-op for retail: no modifier_note ("" === "") and no sent_to_kitchen
+		// collapse the predicate to the original item_code+uom match.
+		const itemSignature = item.modifier_note || "";
 		const existingItem = invoiceItems.value.find(
-			(i) => i.item_code === item.item_code && i.uom === itemUom
+			(i) =>
+				i.item_code === item.item_code &&
+				i.uom === itemUom &&
+				(i.modifier_note || "") === itemSignature &&
+				!i.sent_to_kitchen
 		);
 
 		if (existingItem) {
@@ -289,6 +301,17 @@ export function useInvoice() {
 				is_bundle: item.is_bundle || false,
 				allow_negative_stock: item.allow_negative_stock || 0,
 			};
+			// Restaurant modifier fields (additive; Q2 delta-only means the caller has
+			// already folded the server delta into rate/price_list_rate, so nothing
+			// here changes the money math). Only attached when the item actually
+			// carries modifier context — retail lines stay byte-for-byte identical.
+			if (item.modifier_note || item.modifier_selection || item.line_uid) {
+				newItem.modifier_note = item.modifier_note || "";
+				newItem.modifier_selection = item.modifier_selection || null;
+				newItem.line_uid = item.line_uid || null;
+				newItem.sent_to_kitchen = item.sent_to_kitchen || 0;
+				newItem.kot = item.kot || null;
+			}
 			invoiceItems.value.push(newItem);
 			// Recalculate the newly added item to apply taxes
 			recalculateItem(newItem);
@@ -311,9 +334,14 @@ export function useInvoice() {
 	 *                            If provided, only removes the item with matching item_code AND uom.
 	 *                            If null, removes the first item matching item_code.
 	 */
-	function removeItem(itemCode, uom = null) {
+	function removeItem(itemCode, uom = null, lineUid = null) {
 		let itemToRemove;
-		if (uom) {
+		// Restaurant modifier lines (Q1 LOCKED: line_uid): address the exact line even
+		// when item_code+uom collide across modifier selections. Retail callers pass no
+		// lineUid, so the match collapses to the original item_code(+uom) behaviour.
+		if (lineUid) {
+			itemToRemove = invoiceItems.value.find((i) => i.line_uid === lineUid);
+		} else if (uom) {
 			itemToRemove = invoiceItems.value.find(
 				(i) => i.item_code === itemCode && i.uom === uom
 			);
@@ -340,7 +368,9 @@ export function useInvoice() {
 			}
 		}
 
-		if (uom) {
+		if (lineUid) {
+			invoiceItems.value = invoiceItems.value.filter((i) => i.line_uid !== lineUid);
+		} else if (uom) {
 			invoiceItems.value = invoiceItems.value.filter(
 				(i) => !(i.item_code === itemCode && i.uom === uom)
 			);
@@ -357,9 +387,13 @@ export function useInvoice() {
 	 *                            If provided, only updates the item with matching item_code AND uom.
 	 *                            If null, updates the first item matching item_code.
 	 */
-	function updateItemQuantity(itemCode, quantity, uom = null) {
+	function updateItemQuantity(itemCode, quantity, uom = null, lineUid = null) {
 		let item;
-		if (uom) {
+		// Restaurant modifier lines (Q1 LOCKED: line_uid): address the exact line even
+		// when item_code+uom collide. Retail callers pass no lineUid -> unchanged.
+		if (lineUid) {
+			item = invoiceItems.value.find((i) => i.line_uid === lineUid);
+		} else if (uom) {
 			item = invoiceItems.value.find((i) => i.item_code === itemCode && i.uom === uom);
 		} else {
 			item = invoiceItems.value.find((i) => i.item_code === itemCode);

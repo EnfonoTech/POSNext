@@ -40,7 +40,8 @@ export const usePOSDraftsStore = defineStore("posDrafts", () => {
 		customer,
 		posProfile,
 		appliedOffers = [],
-		draftId = null
+		draftId = null,
+		table = null
 	) {
 		if (invoiceItems.length === 0) {
 			showWarning(__("Cannot save an empty cart as draft"));
@@ -54,6 +55,15 @@ export const usePOSDraftsStore = defineStore("posDrafts", () => {
 				items: invoiceItems,
 				applied_offers: appliedOffers, // Save applied offers
 			};
+
+			// Restaurant dine-in (Q4 LOCKED: no DB migration): tag the draft with its
+			// table so the floor picker can re-open the exact in-progress order. The
+			// field rides the existing draftData spread into IndexedDB and is filtered
+			// in memory by findDraftByTable. Only set for table-bound (dine-in) drafts
+			// so retail holds are unchanged.
+			if (table) {
+				draftData.table = table;
+			}
 
 			let savedDraft;
 			if (draftId) {
@@ -82,11 +92,28 @@ export const usePOSDraftsStore = defineStore("posDrafts", () => {
 				items: draft.items || [],
 				customer: draft.customer,
 				applied_offers: draft.applied_offers || [], // Restore applied offers
+				table: draft.table || null, // Restore restaurant table binding (Q4)
 			};
 		} catch (error) {
 			console.error("Error loading draft:", error);
 			showError(__("Failed to load draft"));
 			throw error;
+		}
+	}
+
+	/**
+	 * Find the newest draft bound to a given restaurant table (Q4: no DB index —
+	 * drafts are filtered in memory). Returns null when the table has no draft.
+	 * getAllDrafts is newest-first, so the first match is the current order.
+	 */
+	async function findDraftByTable(table) {
+		if (!table) return null;
+		try {
+			const all = await getAllDrafts();
+			return all.find((d) => d.table === table) || null;
+		} catch (error) {
+			console.error("Error finding draft by table:", error);
+			return null;
 		}
 	}
 
@@ -111,6 +138,7 @@ export const usePOSDraftsStore = defineStore("posDrafts", () => {
 		loadDrafts,
 		saveDraftInvoice,
 		loadDraft,
+		findDraftByTable,
 		deleteDraft: deleteDraftById,
 	};
 });
