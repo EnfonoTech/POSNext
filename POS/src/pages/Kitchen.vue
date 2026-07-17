@@ -9,7 +9,7 @@
 						<span class="text-xs text-gray-400">{{ tickets.length }} {{ __("open") }}</span>
 					</div>
 					<nav class="flex items-center space-x-2">
-						<router-link to="/" class="px-3 py-1.5 text-sm rounded-md text-gray-300 hover:bg-gray-700">
+						<router-link to="/sell" class="px-3 py-1.5 text-sm rounded-md text-gray-300 hover:bg-gray-700">
 							{{ __("Sell") }}
 						</router-link>
 						<router-link to="/tables" class="px-3 py-1.5 text-sm rounded-md text-gray-300 hover:bg-gray-700">

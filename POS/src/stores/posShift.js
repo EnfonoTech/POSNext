@@ -18,6 +18,9 @@ export const usePOSShiftStore = defineStore("posShift", () => {
 	const profileWarehouse = computed(() => currentProfile.value?.warehouse);
 	const profileCompany = computed(() => currentProfile.value?.company);
 	const profileCustomer = computed(() => currentProfile.value?.customer);
+	// Restaurant mode: per-POS-Profile toggle (custom field). When on, the app
+	// exposes the tables floor, kitchen display and item modifiers.
+	const isRestaurant = computed(() => Number(currentProfile.value?.restaurant_mode) === 1);
 	const autoPrintEnabled = computed(() => currentProfile.value?.print_receipt_on_order_complete);
 	const writeOffAccount = computed(() => currentProfile.value?.write_off_account);
 	const writeOffCostCenter = computed(() => currentProfile.value?.write_off_cost_center);
@@ -100,6 +103,7 @@ export const usePOSShiftStore = defineStore("posShift", () => {
 		profileWarehouse,
 		profileCompany,
 		profileCustomer,
+		isRestaurant,
 		autoPrintEnabled,
 		writeOffAccount,
 		writeOffCostCenter,

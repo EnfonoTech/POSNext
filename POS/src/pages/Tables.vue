@@ -11,7 +11,7 @@
 						</span>
 					</div>
 					<nav class="flex items-center space-x-2">
-						<router-link to="/" class="px-3 py-1.5 text-sm rounded-md text-gray-600 hover:bg-gray-100">
+						<router-link to="/sell" class="px-3 py-1.5 text-sm rounded-md text-gray-600 hover:bg-gray-100">
 							{{ __("Sell") }}
 						</router-link>
 						<router-link
@@ -97,7 +97,7 @@
 								v-for="r in itemResults"
 								:key="r.value"
 								class="block w-full text-left px-3 py-2 text-sm hover:bg-blue-50"
-								@click="addItem(r.value)"
+								@click="pickItem(r.value)"
 							>
 								<span class="font-medium">{{ r.value }}</span>
 								<span v-if="r.description" class="text-gray-500"> — {{ r.description }}</span>
@@ -171,13 +171,65 @@
 				</div>
 			</div>
 		</div>
+
+		<!-- Modifier picker -->
+		<Dialog v-model="modOpen" :options="{ title: __('Choose options'), size: 'sm' }">
+			<template #body-content>
+				<div v-if="modItem" class="space-y-4">
+					<div class="text-sm font-medium text-gray-900">{{ modItem.code }}</div>
+					<div v-for="g in modGroups" :key="g.group_name" class="space-y-1.5">
+						<div class="flex items-center justify-between">
+							<span class="text-sm font-semibold text-gray-800">
+								{{ g.group_name }}
+								<span v-if="g.is_required" class="text-red-500">*</span>
+							</span>
+							<span class="text-xs text-gray-400">
+								{{ g.selection_type === "Single" ? __("pick one") : __("pick any") }}
+							</span>
+						</div>
+						<div class="grid grid-cols-2 gap-2">
+							<button
+								v-for="o in g.options"
+								:key="o.label"
+								class="flex items-center justify-between rounded-lg border px-3 py-2 text-sm transition"
+								:class="
+									isPicked(g, o.label)
+										? 'border-blue-500 bg-blue-50 text-blue-700'
+										: 'border-gray-200 hover:border-blue-300 text-gray-700'
+								"
+								@click="toggleOption(g, o.label)"
+							>
+								<span>{{ o.label }}</span>
+								<span v-if="Number(o.price_delta) > 0" class="text-xs text-gray-500">
+									+{{ Number(o.price_delta).toFixed(2) }}
+								</span>
+							</button>
+						</div>
+					</div>
+					<div class="flex items-center justify-between border-t pt-3 text-sm">
+						<span class="text-gray-500">{{ __("Modifiers") }}</span>
+						<span class="font-medium">+{{ modDeltaTotal.toFixed(2) }} {{ shiftStore.profileCurrency || "SAR" }}</span>
+					</div>
+				</div>
+			</template>
+			<template #actions>
+				<button
+					class="w-full rounded-md bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium py-2 disabled:opacity-50"
+					:disabled="!modValid || busy"
+					@click="confirmModifiers"
+				>
+					{{ __("Add to order") }}
+				</button>
+			</template>
+		</Dialog>
 	</div>
 </template>
 
 <script setup>
+import { Dialog } from "frappe-ui";
 import { call } from "@/utils/apiWrapper";
 import { usePOSShiftStore } from "@/stores/posShift";
-import { computed, onMounted, onUnmounted, ref } from "vue";
+import { computed, onMounted, onUnmounted, reactive, ref } from "vue";
 
 const shiftStore = usePOSShiftStore();
 
@@ -190,6 +242,56 @@ const itemResults = ref([]);
 const busy = ref(false);
 const message = ref("");
 const messageIsError = ref(false);
+
+// Modifier picker dialog state
+const modOpen = ref(false);
+const modItem = ref(null); // { code }
+const modGroups = ref([]); // resolved groups from get_item_modifiers
+const modSel = reactive({}); // group_name -> label (Single) | [labels] (Multiple)
+
+const modDeltaTotal = computed(() => {
+	let d = 0;
+	for (const g of modGroups.value) {
+		const picked = pickedLabels(g);
+		for (const o of g.options) {
+			if (picked.includes(o.label)) d += Number(o.price_delta) || 0;
+		}
+	}
+	return d;
+});
+
+function pickedLabels(g) {
+	const v = modSel[g.group_name];
+	if (v == null || v === "") return [];
+	return Array.isArray(v) ? v : [v];
+}
+
+const modValid = computed(() =>
+	modGroups.value.every((g) => {
+		const n = pickedLabels(g).length;
+		if (g.is_required && n < 1) return false;
+		if (n > 0 && g.min && n < g.min) return false;
+		if (g.max && n > g.max) return false;
+		if (g.selection_type === "Single" && n > 1) return false;
+		return true;
+	})
+);
+
+function toggleOption(g, label) {
+	if (g.selection_type === "Single") {
+		modSel[g.group_name] = modSel[g.group_name] === label ? "" : label;
+	} else {
+		const cur = Array.isArray(modSel[g.group_name]) ? [...modSel[g.group_name]] : [];
+		const i = cur.indexOf(label);
+		if (i >= 0) cur.splice(i, 1);
+		else cur.push(label);
+		modSel[g.group_name] = cur;
+	}
+}
+
+function isPicked(g, label) {
+	return pickedLabels(g).includes(label);
+}
 
 const hasUnsent = computed(() => (session.value?.items || []).some((l) => !l.sent_to_kitchen && l.qty > 0));
 
@@ -261,16 +363,60 @@ function searchItems() {
 	}, 250);
 }
 
-async function addItem(itemCode) {
+async function pickItem(itemCode) {
 	itemQuery.value = "";
 	itemResults.value = [];
+	// Ask the server which modifier groups this item offers. If none, add it
+	// straight away; otherwise open the picker so the cashier chooses options.
+	let groups = [];
+	try {
+		groups = await call("pos_next.api.restaurant.get_item_modifiers", { item_code: itemCode });
+	} catch (e) {
+		groups = [];
+	}
+	if (Array.isArray(groups) && groups.length) {
+		modItem.value = { code: itemCode };
+		modGroups.value = groups;
+		for (const k of Object.keys(modSel)) delete modSel[k];
+		// Pre-select single-group defaults for a faster tap-through.
+		for (const g of groups) {
+			if (g.selection_type === "Single") {
+				const def = (g.options || []).find((o) => o.is_default);
+				modSel[g.group_name] = def ? def.label : "";
+			} else {
+				modSel[g.group_name] = [];
+			}
+		}
+		modOpen.value = true;
+	} else {
+		await addItem(itemCode, null);
+	}
+}
+
+async function confirmModifiers() {
+	if (!modValid.value) return;
+	const sel = {};
+	for (const g of modGroups.value) {
+		const picked = pickedLabels(g);
+		if (picked.length) sel[g.group_name] = g.selection_type === "Single" ? picked[0] : picked;
+	}
+	const code = modItem.value.code;
+	modOpen.value = false;
+	await addItem(code, sel);
+}
+
+async function addItem(itemCode, modifiers) {
 	busy.value = true;
 	try {
-		session.value = await call("pos_next.api.restaurant.session_add_item", {
+		const params = {
 			session: session.value.name,
 			item_code: itemCode,
 			qty: 1,
-		});
+		};
+		if (modifiers && Object.keys(modifiers).length) {
+			params.modifiers = JSON.stringify(modifiers);
+		}
+		session.value = await call("pos_next.api.restaurant.session_add_item", params);
 	} catch (e) {
 		note(e?.messages?.[0] || __("Failed to add item"), true);
 	} finally {

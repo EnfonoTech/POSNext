@@ -33,6 +33,26 @@
 				@logout="uiStore.showLogoutDialog = true"
 			>
 				<template #menu-items>
+					<router-link
+						v-if="shiftStore.isRestaurant && shiftStore.hasOpenShift"
+						to="/tables"
+						class="w-full text-start px-4 py-2.5 text-sm text-gray-700 hover:bg-amber-50 flex items-center gap-3 transition-colors"
+					>
+						<svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+						</svg>
+						<span>{{ __("Tables") }}</span>
+					</router-link>
+					<router-link
+						v-if="shiftStore.isRestaurant && shiftStore.hasOpenShift"
+						to="/kitchen"
+						class="w-full text-start px-4 py-2.5 text-sm text-gray-700 hover:bg-amber-50 flex items-center gap-3 transition-colors"
+					>
+						<svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+						</svg>
+						<span>{{ __("Kitchen Display") }}</span>
+					</router-link>
 					<button
 						v-if="shiftStore.hasOpenShift"
 						@click="uiStore.showOpenShiftDialog = true"
