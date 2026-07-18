@@ -727,6 +727,30 @@
 
 				<!-- Quick Actions Grid -->
 				<div class="grid grid-cols-2 gap-2 sm:gap-2.5 w-full max-w-lg">
+					<!-- Select Table (restaurant mode) — bind this order to a table without
+					     leaving the sell screen. Spans both columns so it reads as the
+					     primary dine-in action; amber when a table is already bound. -->
+					<button
+						v-if="isRestaurant"
+						type="button"
+						@click="$emit('select-table')"
+						class="col-span-2 flex items-center justify-center gap-2 p-3 sm:p-4 rounded-lg border shadow-sm hover:shadow transition-colors touch-manipulation group"
+						:class="
+							activeTable
+								? 'bg-amber-50 border-amber-300 hover:bg-amber-100'
+								: 'bg-white border-gray-200 hover:border-amber-300 hover:bg-amber-50'
+						"
+						:title="__('Select or change the table for this order')"
+					>
+						<svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+						</svg>
+						<span class="text-xs sm:text-sm font-semibold text-gray-800">
+							<template v-if="activeTable">{{ __("Table") }}: {{ activeTable }} · {{ __("Change") }}</template>
+							<template v-else>{{ __("Select Table") }}</template>
+						</span>
+					</button>
+
 					<!-- View Shift -->
 					<button
 						type="button"
@@ -1040,6 +1064,18 @@
 										/>
 									</svg>
 								</button>
+							</div>
+
+							<!-- Bilingual: Arabic item name (Feature 3). Own line, RTL;
+							     a byte-for-byte no-op when custom_arabic_name is empty
+							     (retail / un-named items render exactly as before). -->
+							<div
+								v-if="arabicLabel(item)"
+								class="text-[10px] sm:text-xs text-gray-500 truncate leading-tight mb-0.5"
+								dir="rtl"
+								lang="ar"
+							>
+								{{ arabicLabel(item) }}
 							</div>
 
 							<!-- Restaurant: modifier note + "sent to kitchen" marker.
@@ -1417,6 +1453,19 @@
 				<span>🔥 {{ __("Send to Kitchen") }}</span>
 			</button>
 
+			<!-- Restaurant: Complimentary / Void (comp the whole order — no Sales
+			     Invoice, nothing reaches ZATCA). Gated on dine-in mode + a non-empty
+			     cart; never rendered for retail. -->
+			<button
+				v-if="isRestaurant && items.length > 0"
+				type="button"
+				@click="$emit('comp-order')"
+				class="w-full mb-1.5 py-2.5 px-3 rounded-lg font-bold text-xs text-rose-700 bg-rose-50 hover:bg-rose-100 active:bg-rose-200 transition-all flex items-center justify-center touch-manipulation active:scale-[0.98]"
+				:aria-label="__('Complimentary / Void')"
+			>
+				<span>🎁 {{ __("Complimentary / Void") }}</span>
+			</button>
+
 			<!-- Action Buttons -->
 			<div class="flex gap-1.5">
 				<!-- Checkout Button (Primary - 50% width) -->
@@ -1498,6 +1547,7 @@ import { useCustomerSearchStore } from "@/stores/customerSearch";
 import { DEFAULT_CURRENCY, formatCurrency as formatCurrencyUtil } from "@/utils/currency";
 import { useFormatters } from "@/composables/useFormatters";
 import { useCartSort } from "@/composables/useCartSort";
+import { arabicLabel } from "@/utils/bilingual";
 import { isOffline } from "@/utils/offline";
 import { offlineWorker } from "@/utils/offline/workerClient";
 import { logger } from "@/utils/logger";
@@ -1579,6 +1629,13 @@ const props = defineProps({
 		type: Boolean,
 		default: false,
 	},
+	// Restaurant: the table the cart is currently bound to (null = no table).
+	// Shown on the in-cart "Select table" quick action so staff can bind a table
+	// without leaving the sell screen.
+	activeTable: {
+		type: String,
+		default: null,
+	},
 });
 
 /**
@@ -1608,6 +1665,8 @@ const emit = defineEmits([
 	"show-return", // () - Open return invoice dialog
 	"close-shift", // () - Close current shift
 	"send-kitchen", // () - Restaurant: fire unsent cart lines to the kitchen (KOT)
+	"comp-order", // () - Restaurant: complimentary / void the current order (no Sales Invoice)
+	"select-table", // () - Restaurant: open the inline table picker to bind this order to a table
 	// "create-sales-order", // () - Create Sales Order // Removed as per instruction
 ]);
 

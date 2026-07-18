@@ -225,12 +225,23 @@
 							</span>
 							<span v-else class="text-gray-500">{{ __("No table (retail sale)") }}</span>
 						</div>
-						<router-link
-							to="/tables"
-							class="mt-1 inline-block text-xs text-blue-600 hover:underline"
-						>
-							{{ restaurantStore.activeTable ? __("Change table") : __("Choose table") }}
-						</router-link>
+						<div class="mt-1 flex items-center gap-3">
+							<router-link
+								to="/tables"
+								class="inline-block text-xs text-blue-600 hover:underline"
+							>
+								{{ restaurantStore.activeTable ? __("Change table") : __("Choose table") }}
+							</router-link>
+							<!-- Transfer this table's order to a free table (Feature 2). -->
+							<button
+								v-if="restaurantStore.activeTable"
+								type="button"
+								class="inline-block text-xs text-blue-600 hover:underline"
+								@click="showTransferDialog = true"
+							>
+								{{ __("Transfer table") }}
+							</button>
+						</div>
 					</div>
 					<button
 						v-if="canAccessShiftActions"
@@ -412,6 +423,8 @@
 								:applied-offers="cartStore.appliedOffers"
 								:warehouses="profileWarehouses"
 								:is-restaurant="shiftStore.isRestaurant"
+								:active-table="restaurantStore.activeTable"
+								@select-table="showSelectTableDialog = true"
 								@update-quantity="
 									(itemCode, qty, uom, lineUid) =>
 										cartStore.updateItemQuantity(itemCode, qty, uom, lineUid)
@@ -421,6 +434,7 @@
 										cartStore.removeItem(itemCode, uom, lineUid)
 								"
 								@send-kitchen="handleSendKitchen"
+								@comp-order="handleCompOrder"
 								@select-customer="handleCustomerSelected"
 								@create-customer="handleCreateCustomer"
 								@edit-customer="handleEditCustomer"
@@ -564,6 +578,31 @@
 				:item-code="pendingModifierItem?.item_code || ''"
 				:groups="modifierGroups"
 				@confirm="handleModifierConfirm"
+			/>
+
+			<!-- Restaurant: inline table picker — bind this order to a table without
+			     leaving the sell screen (triggered from the empty-cart quick action). -->
+			<SelectTableDialog
+				v-if="shiftStore.isRestaurant"
+				v-model="showSelectTableDialog"
+				:pos-profile="shiftStore.profileName"
+				@confirm="handleSelectTable"
+			/>
+
+			<!-- Restaurant: table-transfer picker (free tables only). Feature 2. -->
+			<TransferTableDialog
+				v-if="shiftStore.isRestaurant"
+				v-model="showTransferDialog"
+				:current-table="restaurantStore.activeTable"
+				:pos-profile="shiftStore.profileName"
+				@confirm="handleTransferTable"
+			/>
+
+			<!-- Restaurant: complimentary / void reason picker. Feature 1. -->
+			<CompOrderDialog
+				v-if="shiftStore.isRestaurant"
+				v-model="showCompDialog"
+				@confirm="handleCompConfirm"
 			/>
 
 			<!-- Customer Selection Dialog -->
@@ -1069,6 +1108,9 @@ import CustomerDialog from "@/components/sale/CustomerDialog.vue";
 import DraftInvoicesDialog from "@/components/sale/DraftInvoicesDialog.vue";
 import InvoiceCart from "@/components/sale/InvoiceCart.vue";
 import ModifierDialog from "@/components/sale/ModifierDialog.vue";
+import TransferTableDialog from "@/components/sale/TransferTableDialog.vue";
+import SelectTableDialog from "@/components/sale/SelectTableDialog.vue";
+import CompOrderDialog from "@/components/sale/CompOrderDialog.vue";
 import InvoiceHistoryDialog from "@/components/sale/InvoiceHistoryDialog.vue";
 import ItemSelectionDialog from "@/components/sale/ItemSelectionDialog.vue";
 import ItemsSelector from "@/components/sale/ItemsSelector.vue";
@@ -1185,6 +1227,11 @@ const route = useRoute();
 const showModifierDialog = ref(false);
 const pendingModifierItem = ref(null); // the item awaiting a modifier selection
 const modifierGroups = ref([]); // groups for the pending item (passed to the dialog)
+// Table transfer (F2) + complimentary / void (F1) dialog visibility.
+const showTransferDialog = ref(false);
+const showCompDialog = ref(false);
+// Inline table picker (bind a table from the sell screen).
+const showSelectTableDialog = ref(false);
 // The per-item modifier-group map lives in the posRestaurant store (survives
 // remounts — F1); read it via restaurantStore.modifierGroupsFor / .loadModifierGroupsMap.
 
@@ -2105,6 +2152,77 @@ async function handleSendKitchen() {
 }
 
 /**
+ * Restaurant: open the complimentary / void reason picker. The dialog is gated on a
+ * non-empty dine-in cart via the InvoiceCart button that emits `comp-order`.
+ */
+function handleCompOrder() {
+	showCompDialog.value = true;
+}
+
+/**
+ * Restaurant: the cashier confirmed a comp reason. Whole-order comp (Q3 MVP): the
+ * store maps the current cart lines to the comp payload, posts
+ * submit_complimentary_order (NO Sales Invoice), then clears the cart + cancels the
+ * presence session on success. Thin wrapper over the store; just toasts here.
+ */
+async function handleCompConfirm({ reason, reason_note }) {
+	try {
+		const res = await restaurantStore.submitCompOrder({ reason, reason_note });
+		if (!res.ok) {
+			if (res.reason === "no-reason") {
+				showWarning(__("A reason is required for a complimentary order"));
+			} else {
+				uiStore.showError(
+					__("Could not record the complimentary order"),
+					res.reason || __("Please try again.")
+				);
+			}
+			return;
+		}
+		showSuccess(__("Order comped: {0}", [res.comp_order]));
+		// The comp saved but its stock reversal did not complete — tell the cashier so a
+		// manager can re-issue from the desk (Reviewer #5); the comp itself is recorded.
+		if (res.warning) {
+			showWarning(res.warning);
+		}
+	} catch (error) {
+		uiStore.showError(
+			__("Could not record the complimentary order"),
+			error?.messages?.[0] || error?.message || __("Please try again.")
+		);
+	}
+}
+
+/**
+ * Restaurant: the cashier picked a free target table. Thin wrapper over the store's
+ * transferTable (server move + local draft re-tag + rebind); just toasts here.
+ */
+async function handleTransferTable(toTable) {
+	try {
+		const res = await restaurantStore.transferTable(toTable);
+		if (!res.ok) {
+			if (res.reason === "no-table") {
+				showWarning(__("Bind a table before transferring"));
+			} else if (res.reason === "same-table") {
+				showWarning(__("Pick a different table to transfer to"));
+			} else {
+				uiStore.showError(
+					__("Could not transfer the table"),
+					res.reason || __("Please try again.")
+				);
+			}
+			return;
+		}
+		showSuccess(__("Table transferred to {0}", [res.toTable]));
+	} catch (error) {
+		uiStore.showError(
+			__("Could not transfer the table"),
+			error?.messages?.[0] || error?.message || __("Please try again.")
+		);
+	}
+}
+
+/**
  * Restaurant: bind the main cart to a table. Mirrors handleLoadDraft's save-then-load
  * so switching tables never loses the current order: save the current cart to its
  * table draft first (abort on failure), then load the target table's draft or start
@@ -2138,6 +2256,16 @@ async function openTableContext(table) {
 		log.error("Error opening table context:", error);
 		showError(__("Failed to open the table"));
 	}
+}
+
+/**
+ * Restaurant: the cashier picked a table in the inline SelectTableDialog. Bind the
+ * cart to it right here (no navigation to /tables) via the same save-then-load
+ * orchestration used by the floor picker + deep-link.
+ */
+async function handleSelectTable(table) {
+	if (!table) return;
+	await openTableContext(table);
 }
 
 /** Restaurant: restore the table binding from the ?table= deep-link (survives reload). */

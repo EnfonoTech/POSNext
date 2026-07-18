@@ -94,7 +94,7 @@ jinja = {
 fixtures = [
 	{"dt": "Role", "filters": [["role_name", "in", ["POSNext Cashier", "Nexus POS Manager"]]]},
 	{"dt": "Custom DocPerm", "filters": [["role", "in", ["POSNext Cashier"]]]},
-	{"dt": "Custom Field", "filters": [["name", "in", ["Item-custom_modifier_groups", "POS Profile-restaurant_mode"]]]},
+	{"dt": "Custom Field", "filters": [["name", "in", ["Item-custom_modifier_groups", "POS Profile-restaurant_mode", "Item-custom_arabic_name", "Stock Entry-custom_pos_comp_order"]]]},
 	{"dt": "Workspace", "filters": [["module", "=", "Restaurant"]]},
 ]
 

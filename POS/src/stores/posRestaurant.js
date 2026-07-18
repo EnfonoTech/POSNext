@@ -40,6 +40,11 @@ export const usePOSRestaurantStore = defineStore("posRestaurant", () => {
 	// singletons persist across remounts, like activeTable/activeSession.
 	const modifierGroupsMap = ref({});
 
+	// Client half of the comp double-submit guard (Reviewer #4): blocks a second
+	// submitCompOrder while the first is still in flight (rapid double-click). The server
+	// idempotency_key is the cross-request guard; this stops the extra request at source.
+	let compSubmitInFlight = false;
+
 	/**
 	 * Load the item_code -> modifier-groups map once so the sell screen can decide
 	 * synchronously whether an item needs the picker. Best-effort: on failure the map
@@ -287,6 +292,128 @@ export const usePOSRestaurantStore = defineStore("posRestaurant", () => {
 		return { ok: true, kot };
 	}
 
+	/**
+	 * Move the active table's dine-in binding to a free target table. Server-side the
+	 * Open session + Open KOTs move (transfer_table); locally we re-tag this device's
+	 * draft to the target and rebind activeTable/activeSession. Best-effort by contract
+	 * (Q7: other devices reconcile on reload) — returns {ok:false, reason} instead of
+	 * throwing so the wrapper can toast.
+	 *
+	 * @returns {{ok:false, reason:string} | {ok:true, session:string|null, toTable:string}}
+	 */
+	async function transferTable(toTable) {
+		const from = activeTable.value;
+		if (!toTable) return { ok: false, reason: "no-target" };
+		if (!from) return { ok: false, reason: "no-table" };
+		if (from === toTable) return { ok: false, reason: "same-table" };
+
+		let res;
+		try {
+			res = await call("pos_next.api.restaurant.transfer_table", {
+				from_table: from,
+				to_table: toTable,
+			});
+		} catch (error) {
+			// Source binding preserved — the transfer did not happen.
+			return { ok: false, reason: error?.message || "transfer-failed" };
+		}
+
+		// Re-tag this device's draft from the old table to the new one so the floor
+		// picker re-opens the in-progress order under the target. Best-effort — the
+		// server move already succeeded; a draft hiccup must not undo it.
+		const cart = usePOSCartStore();
+		const drafts = usePOSDraftsStore();
+		try {
+			if (!cart.isEmpty) {
+				const saved = await drafts.saveDraftInvoice(
+					cart.invoiceItems,
+					cart.customer,
+					cart.posProfile,
+					cart.appliedOffers,
+					cart.currentDraftId,
+					toTable
+				);
+				if (saved) cart.currentDraftId = saved.draft_id;
+			}
+		} catch (error) {
+			// swallow — draft re-tag is local polish, not part of the move's success
+		}
+		setActiveTable(toTable);
+		setActiveSession(res?.session || activeSession.value);
+		return { ok: true, session: res?.session || null, toTable };
+	}
+
+	/**
+	 * Complimentary / void the current cart (Feature 1, whole-order MVP). Maps the cart
+	 * lines to the comp payload and posts submit_complimentary_order — NO Sales Invoice
+	 * is created (nothing reaches ZATCA). A reason is REQUIRED. On success clears the
+	 * cart, cancels the presence session and discards the draft. Best-effort: returns
+	 * {ok:false, reason} rather than throwing.
+	 *
+	 * @param {{reason:string, reason_note?:string}} payload
+	 * @returns {{ok:false, reason:string} | {ok:true, comp_order:string|null, warning:string|null}}
+	 */
+	async function submitCompOrder({ reason, reason_note = null } = {}) {
+		if (!reason) return { ok: false, reason: "no-reason" };
+		// Double-click guard: a second submit while the first is in flight is a no-op
+		// (the server idempotency_key covers cross-request replays).
+		if (compSubmitInFlight) return { ok: false, reason: "in-flight" };
+		compSubmitInFlight = true;
+		try {
+			const cart = usePOSCartStore();
+			const drafts = usePOSDraftsStore();
+			const shift = usePOSShiftStore();
+
+			// Whole-order comp sources the current cart incl. sent-to-kitchen lines (Q4).
+			const items = (cart.invoiceItems || []).map((line) => ({
+				item_code: line.item_code,
+				qty: line.qty,
+				rate: line.rate,
+				notes: line.notes || "",
+			}));
+
+			const cust = cart.customer;
+			const customer = cust && typeof cust === "object" ? cust.name || null : cust || null;
+
+			let res;
+			try {
+				res = await call("pos_next.api.restaurant.submit_complimentary_order", {
+					items,
+					reason,
+					reason_note: reason_note || null,
+					customer,
+					// activeTable IS the POS Table's human label (autoname field:table_name);
+					// the server normalises it to the canonical table_name defensively (#6b).
+					table_label: activeTable.value || null,
+					pos_profile: shift.profileName || null,
+					// Per-attempt key so a proxy/network replay of THIS request can't create a
+					// second comp + Material Issue on the server (Reviewer #4).
+					idempotency_key: makeLineUid(),
+				});
+			} catch (error) {
+				return { ok: false, reason: error?.message || "comp-failed" };
+			}
+
+			const draftId = cart.currentDraftId;
+			cart.clearCart();
+			await cancelSession();
+			try {
+				if (draftId) await drafts.deleteDraft(draftId);
+			} catch (error) {
+				// best-effort draft cleanup — the comp is already recorded server-side
+			}
+			// Surface a resilience warning when the comp saved but its stock reversal did
+			// not complete though movement was expected (Reviewer #5).
+			return {
+				ok: true,
+				comp_order: res?.comp_order || res?.name || null,
+				warning: res?.stock_warning || null,
+			};
+		} finally {
+			compSubmitInFlight = false;
+		}
+	}
+
 	return {
 		// State
 		activeTable,
@@ -311,5 +438,9 @@ export const usePOSRestaurantStore = defineStore("posRestaurant", () => {
 		openTable,
 		confirmModifier,
 		sendKitchen,
+
+		// Table transfer (F2) + complimentary / void (F1) orchestration
+		transferTable,
+		submitCompOrder,
 	};
 });

@@ -544,6 +544,15 @@
 							>
 								{{ item.item_name }}
 							</h3>
+							<!-- Bilingual: Arabic item name (Feature 3). RTL; no-op when empty. -->
+							<p
+								v-if="arabicLabel(item)"
+								class="text-[9px] sm:text-[10px] text-gray-500 truncate leading-tight"
+								dir="rtl"
+								lang="ar"
+							>
+								{{ arabicLabel(item) }}
+							</p>
 							<p
 								v-if="item.attributes"
 								class="text-[8px] sm:text-[9px] text-gray-400 truncate leading-tight"
@@ -805,6 +814,15 @@
 								>
 									{{ item.item_name }}
 								</div>
+								<!-- Bilingual: Arabic item name (Feature 3). RTL; no-op when empty. -->
+								<div
+									v-if="arabicLabel(item)"
+									class="text-[10px] sm:text-xs text-gray-500 truncate leading-tight"
+									dir="rtl"
+									lang="ar"
+								>
+									{{ arabicLabel(item) }}
+								</div>
 								<div
 									v-if="item.attributes"
 									class="text-[8px] sm:text-[9px] text-gray-400 truncate leading-tight"
@@ -1014,6 +1032,7 @@ import { useStock } from "@/composables/useStock";
 import { useDialogState } from "@/composables/useDialogState";
 import { useSearchInput } from "@/composables/useSearchInput";
 import { DEFAULT_CURRENCY, formatCurrency as formatCurrencyUtil } from "@/utils/currency";
+import { arabicLabel } from "@/utils/bilingual";
 import { useToast } from "@/composables/useToast";
 import { storeToRefs } from "pinia";
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";

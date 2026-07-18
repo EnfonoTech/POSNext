@@ -558,12 +558,27 @@ def kot_send(table_label, items, pos_profile=None, customer_name=None, table=Non
 		doc.status = "Open"
 		doc.ordered_at = now_datetime()
 
+	# Bilingual KOT: the kitchen sees "Latte · لاتيه" on the KDS + printed ticket
+	# without any KOT Ticket Item schema change. One batched Item.custom_arabic_name
+	# lookup for all lines; a byte-for-byte no-op when the Arabic name is empty.
+	codes = [it.get("item_code") for it in items if it.get("item_code")]
+	ar_map = {}
+	if codes:
+		ar_map = {
+			r.name: cstr(r.custom_arabic_name or "")
+			for r in frappe.get_all(
+				"Item", filters={"name": ["in", codes]}, fields=["name", "custom_arabic_name"]
+			)
+		}
+
 	for it in items:
+		name_en = cstr(it.get("item_name") or it.get("item_code"))
+		ar = ar_map.get(it.get("item_code"), "")
 		doc.append(
 			"items",
 			{
 				"item_code": it.get("item_code"),
-				"item_name": cstr(it.get("item_name") or it.get("item_code")),
+				"item_name": f"{name_en}{MODIFIER_SEP}{ar}" if ar else name_en,
 				"qty": cint(it.get("qty")) or 1,
 				"notes": it.get("notes") or "",
 				"status": "Pending",
@@ -637,3 +652,402 @@ def kot_complete(kot):
 	frappe.db.commit()
 	_publish(KOT_EVENT, {"kot": doc.name, "action": "complete", "status": doc.status})
 	return {"kot": doc.name, "status": doc.status}
+
+
+# ─────────────────────────────────────────────
+#  Table transfer (move an open table to a free one)
+# ─────────────────────────────────────────────
+
+
+@frappe.whitelist()
+def transfer_table(from_table, to_table):
+	"""Move an open table's dine-in binding — its single Open POS Table Session plus
+	every Open KOT Ticket — to another free table. Realtime-published so all floor
+	devices reconcile.
+
+	Row-locks the source session (mirror session_settle's for_update) so a concurrent
+	transfer of the SAME source serialises and can't double-move it. Separately serialises
+	on the TARGET's POS Table row and re-checks target-free with a locking read, so two
+	transfers from DIFFERENT sources into the same free target can't both win either.
+	The same session row moves — no new session is ever created."""
+	# Authz gate (Reviewer #3): moving a table's Open session + relinking its KOTs is a
+	# floor-state mutation, not a read — require POS Table Session write (System Manager /
+	# Sales Manager / Nexus POS Manager / POSNext Cashier hold it) rather than letting any
+	# authenticated user reassign tables. Administrator/perm-holders pass; others 403.
+	frappe.has_permission("POS Table Session", "write", throw=True)
+	if from_table == to_table:
+		frappe.throw(_("Source and target tables must be different"))
+	for t in (from_table, to_table):
+		if not frappe.db.exists("POS Table", t):
+			frappe.throw(_("Table {0} not found").format(t))
+	if not cint(frappe.db.get_value("POS Table", from_table, "is_active")):
+		frappe.throw(_("Table {0} is not active").format(from_table))
+	if not cint(frappe.db.get_value("POS Table", to_table, "is_active")):
+		frappe.throw(_("Table {0} is not active").format(to_table))
+
+	src = frappe.db.get_value(
+		"POS Table Session", {"table": from_table, "status": "Open"}, "name", for_update=True
+	)
+	if not src:
+		frappe.throw(_("Source table {0} has no open session").format(from_table))
+
+	# Serialise every transfer targeting this table on the target's POS Table row before the
+	# occupied check. The source for_update above locks only the SOURCE session, so two
+	# transfers from DIFFERENT sources into the same free target would otherwise both pass the
+	# check and both land on it. The loser blocks here until the winner commits and releases.
+	frappe.db.get_value("POS Table", to_table, "name", for_update=True)
+
+	# Locking read so the occupied check reads the LATEST committed state: a plain read would
+	# use this request's REPEATABLE READ snapshot (taken before the winner committed) and miss
+	# the session the winner just moved onto the target.
+	if frappe.db.get_value(
+		"POS Table Session", {"table": to_table, "status": "Open"}, "name", for_update=True
+	):
+		frappe.throw(_("Target table {0} is already occupied").format(to_table))
+
+	to_label = frappe.db.get_value("POS Table", to_table, "table_name")
+	frappe.db.set_value("POS Table Session", src, {"table": to_table, "table_label": to_label})
+
+	# Relink every Open KOT ticket for the source; Completed/Cancelled tickets are
+	# historical and left on the old table. No parent.save() — KOT Ticket is not
+	# submittable, so a direct field write is enough.
+	for kot in frappe.get_all(
+		"KOT Ticket", filters={"table": from_table, "status": "Open"}, pluck="name"
+	):
+		frappe.db.set_value("KOT Ticket", kot, {"table": to_table, "table_label": to_label})
+
+	frappe.db.commit()
+	_publish(TABLE_EVENT, {"from": from_table, "to": to_table, "action": "transfer"})
+	_publish(KOT_EVENT, {"from": from_table, "to": to_table, "action": "transfer"})
+	return {"session": src, "to_table": to_table}
+
+
+# ─────────────────────────────────────────────
+#  Complimentary / Void order (stock-affecting, no Sales Invoice)
+# ─────────────────────────────────────────────
+
+COMP_APPROVER_ROLES = ("System Manager", "Sales Manager", "Nexus POS Manager")
+
+
+def _is_comp_approver(user=None):
+	"""True if `user` (default: session user) may approve/reject a comp order."""
+	user = user or frappe.session.user
+	if user == "Administrator":
+		return True
+	return bool(set(frappe.get_roles(user)) & set(COMP_APPROVER_ROLES))
+
+
+def _guard_comp_approver():
+	"""Throw PermissionError unless the session user holds an approver role. Backs the
+	doctype write perm (POSNext Cashier is create-only) for both the endpoint and any
+	desk edit of `status`."""
+	if not _is_comp_approver():
+		frappe.throw(
+			_("You are not permitted to approve complimentary orders"), frappe.PermissionError
+		)
+
+
+def _comp_stock_context(pos_profile):
+	"""Resolve (company, warehouse, cost_center) for the comp Material Issue.
+	Warehouse = POS Profile.warehouse; cost_center = POS Profile.cost_center falling
+	back to Company.cost_center."""
+	company = warehouse = cost_center = None
+	if pos_profile:
+		p = frappe.db.get_value(
+			"POS Profile", pos_profile, ["company", "warehouse", "cost_center"], as_dict=True
+		)
+		if p:
+			company, warehouse, cost_center = p.company, p.warehouse, p.cost_center
+	if not company:
+		company = frappe.defaults.get_global_default("company") or frappe.db.get_value(
+			"Company", {"name": ["!=", ""]}, "name"
+		)
+	if not cost_center and company:
+		cost_center = frappe.get_cached_value("Company", company, "cost_center")
+	return company, warehouse, cost_center
+
+
+def _bom_raw_needs(menu_lines):
+	"""Aggregate default-BOM raw-material needs for non-stock menu lines
+	(list of {item_code, qty}). Returns {raw_item_code: qty} for STOCK raws only.
+
+	A non-stock BOM raw is DROPPED (and logged): a Material Issue rejects a non-stock
+	line and Frappe aborts the ENTIRE issue on it, which would silently lose the whole
+	(otherwise valid) reversal. Kaapqah kept BOM raws is_stock_item=1 by construction;
+	this port restores that invariant explicitly (Reviewer #2). A non-stock item with no
+	submitted default BOM contributes nothing (no throw). Mirrors Kaapqah's
+	inventory._post_bom_consumption need computation."""
+	codes = list({l["item_code"] for l in menu_lines if l.get("item_code")})
+	if not codes:
+		return {}
+	boms = {
+		b.item: b.name
+		for b in frappe.get_all(
+			"BOM",
+			filters={"item": ["in", codes], "is_default": 1, "docstatus": 1},
+			fields=["item", "name"],
+		)
+	}
+	if not boms:
+		return {}
+	bom_lines = frappe.get_all(
+		"BOM Item", filters={"parent": ["in", list(boms.values())]}, fields=["parent", "item_code", "qty"]
+	)
+	per_bom = {}
+	for bl in bom_lines:
+		per_bom.setdefault(bl.parent, []).append(bl)
+
+	need = {}
+	for l in menu_lines:
+		bom = boms.get(l["item_code"])
+		if not bom:
+			continue
+		for bl in per_bom.get(bom, []):
+			need[bl.item_code] = flt(need.get(bl.item_code)) + flt(bl.qty) * flt(l["qty"])
+	if not need:
+		return {}
+
+	# Keep only is_stock_item==1 raws (batched); drop + log the rest so one non-stock raw
+	# can't abort the Material Issue and lose every valid line (Reviewer #2).
+	raw_codes = list(need)
+	stock_flags = {
+		r.name: cint(r.is_stock_item)
+		for r in frappe.get_all(
+			"Item", filters={"name": ["in", raw_codes]}, fields=["name", "is_stock_item"]
+		)
+	}
+	dropped = [c for c in raw_codes if not stock_flags.get(c)]
+	if dropped:
+		frappe.log_error(
+			"Skipped non-stock BOM raw material(s) in comp stock reversal: " + ", ".join(dropped),
+			"pos_next comp non-stock raw",
+		)
+	return {c: q for c, q in need.items() if stock_flags.get(c)}
+
+
+def _comp_reverse_stock(comp_name, pos_profile=None):
+	"""Issue ONE Material Issue reversing the comped order's stock (LOCKED Q2 = BOTH):
+	is_stock_item lines are issued directly; non-stock menu lines consume their default
+	BOM raw materials. Both are aggregated into a single Stock Entry linked back via
+	custom_pos_comp_order.
+
+	Idempotent: a re-fire (double click / retry / re-submit) returns None because a
+	submitted Stock Entry already carries this comp's link. Returns None when there is
+	nothing to reverse (all lines non-stock without a BOM)."""
+	if frappe.db.exists("Stock Entry", {"custom_pos_comp_order": comp_name, "docstatus": 1}):
+		return None
+
+	co = frappe.get_doc("POS Complimentary Order", comp_name)
+	pos_profile = pos_profile or co.pos_profile
+	company, warehouse, cost_center = _comp_stock_context(pos_profile)
+
+	lines = [
+		{"item_code": r.item_code, "qty": flt(r.qty)}
+		for r in co.items
+		if r.item_code and flt(r.qty) > 0
+	]
+	if not lines:
+		return None
+
+	codes = list({l["item_code"] for l in lines})
+	is_stock = {
+		r.name: cint(r.is_stock_item)
+		for r in frappe.get_all("Item", filters={"name": ["in", codes]}, fields=["name", "is_stock_item"])
+	}
+	direct = [l for l in lines if is_stock.get(l["item_code"])]
+	non_stock = [l for l in lines if not is_stock.get(l["item_code"])]
+
+	need = {}
+	for l in direct:
+		need[l["item_code"]] = flt(need.get(l["item_code"])) + flt(l["qty"])
+	for code, qty in _bom_raw_needs(non_stock).items():
+		need[code] = flt(need.get(code)) + flt(qty)
+	if not need:
+		return None
+
+	se = frappe.get_doc(
+		{
+			"doctype": "Stock Entry",
+			"stock_entry_type": "Material Issue",
+			"purpose": "Material Issue",
+			"company": company,
+			"custom_pos_comp_order": comp_name,
+			"remarks": _("Stock reversal for complimentary order {0}").format(comp_name),
+			# allow_zero_valuation_rate: a bin may be empty/negative on some sites — issue
+			# at zero valuation instead of blocking the reversal (Kaapqah pattern).
+			"items": [
+				{
+					"item_code": code,
+					"qty": qty,
+					"s_warehouse": warehouse,
+					"cost_center": cost_center,
+					"allow_zero_valuation_rate": 1,
+				}
+				for code, qty in need.items()
+			],
+		}
+	)
+	se.flags.ignore_permissions = True
+	se.insert(ignore_permissions=True)
+	se.submit()
+	co.db_set("stock_entry", se.name)
+	return se.name
+
+
+def _comp_stock_return(comp_name):
+	"""Cancel every submitted Material Issue linked to this comp -> stock back. Idempotent
+	via the docstatus=1 filter: a re-reject / already-cancelled comp is a no-op
+	(mirror Kaapqah inventory.reverse_free_order_stock)."""
+	for name in frappe.get_all(
+		"Stock Entry", filters={"custom_pos_comp_order": comp_name, "docstatus": 1}, pluck="name"
+	):
+		se = frappe.get_doc("Stock Entry", name)
+		se.flags.ignore_permissions = True
+		se.cancel()
+
+
+def _comp_line_rate(item_code, provided=None, pos_profile=None):
+	"""Free-order line rate is display-only. Resolve the rate server-side first (spec §86),
+	fall back to the client-provided rate, then Item.standard_rate, then 0 — never hard-fail
+	a comp on a missing price (Kaapqah pattern)."""
+	try:
+		return flt(_resolve_rate(item_code, pos_profile))
+	except Exception:
+		pass
+	if provided not in (None, ""):
+		return flt(provided)
+	return flt(frappe.db.get_value("Item", item_code, "standard_rate") or 0)
+
+
+def _comp_result(comp_name, replayed=False):
+	"""Standard endpoint payload for a comp doc — one shape for a fresh submit and for an
+	idempotent replay so the client handles both identically."""
+	d = (
+		frappe.db.get_value(
+			"POS Complimentary Order", comp_name, ["status", "stock_entry", "total_value"], as_dict=True
+		)
+		or {}
+	)
+	return {
+		"comp_order": comp_name,
+		"status": d.get("status") or "Pending",
+		"stock_entry": d.get("stock_entry"),
+		"total_value": flt(d.get("total_value")),
+		"replayed": replayed,
+	}
+
+
+@frappe.whitelist()
+def submit_complimentary_order(
+	items, reason, reason_note=None, customer=None, table_label=None, pos_profile=None, idempotency_key=None
+):
+	"""Complimentary / void the current dine-in order. Creates NO Sales Invoice
+	(nothing reaches ZATCA). Records a POS Complimentary Order (status Pending) and
+	issues the stock reversal AT CREATION (LOCKED Q1 — the food/drink is physically
+	gone the moment it is comped; approval is an accounting record). A stock hiccup is
+	logged AND surfaced to the caller but must never lose the comp record."""
+	frappe.has_permission("POS Complimentary Order", "create", throw=True)
+	if isinstance(items, str):
+		items = json.loads(items)
+	items = [it for it in (items or []) if flt(it.get("qty")) > 0]
+	if not items:
+		frappe.throw(_("No items to record"))
+	if not reason:
+		frappe.throw(_("A reason is required for a complimentary order"))
+
+	# Endpoint double-submit guard (Reviewer #4): a re-fired submit (double-click / retry /
+	# proxy replay) carrying the same client key must NOT create a second comp + a second
+	# Material Issue (double stock depletion). idempotency_key is a UNIQUE field on the
+	# doctype, so the DB is the hard guard even under truly concurrent inserts; the
+	# get_value below is the fast replay path. No key (legacy calls) => guard is inert.
+	key = cstr(idempotency_key) or None
+	if key:
+		existing = frappe.db.get_value("POS Complimentary Order", {"idempotency_key": key}, "name")
+		if existing:
+			return _comp_result(existing, replayed=True)
+
+	# Normalise table_label to the canonical human label (POS Table.table_name) when the
+	# caller passed a POS Table name (Reviewer #6b) — keeps the desk record readable and
+	# consistent with the session/KOT table_label.
+	if table_label and frappe.db.exists("POS Table", table_label):
+		table_label = frappe.db.get_value("POS Table", table_label, "table_name") or table_label
+
+	co = frappe.new_doc("POS Complimentary Order")
+	co.pos_profile = pos_profile
+	co.table_label = table_label
+	co.customer = customer if (customer and customer != "Walk-in Customer") else None
+	co.staff = frappe.session.user
+	co.ordered_at = now_datetime()
+	co.reason = reason
+	co.reason_note = reason_note
+	co.status = "Pending"
+	co.idempotency_key = key
+	for it in items:
+		code = it["item_code"]
+		rate = _comp_line_rate(code, it.get("rate"), pos_profile)
+		qty = flt(it["qty"])
+		co.append(
+			"items",
+			{
+				"item_code": code,
+				"item_name": frappe.db.get_value("Item", code, "item_name") or code,
+				"qty": qty,
+				"rate": rate,
+				"amount": rate * qty,
+				"notes": it.get("notes") or "",
+			},
+		)
+	try:
+		co.insert(ignore_permissions=True)
+	except frappe.UniqueValidationError:
+		# Lost a concurrent race on the idempotency key — return the winning comp.
+		frappe.db.rollback()
+		winner = frappe.db.get_value("POS Complimentary Order", {"idempotency_key": key}, "name")
+		if winner:
+			return _comp_result(winner, replayed=True)
+		raise
+
+	# Stock out at creation. Guarded — a stock hiccup must not lose the comp record
+	# (admin sees an empty stock_entry and can re-issue). _comp_reverse_stock persists
+	# the SE onto the comp via db_set, so _comp_result reads it back from the DB below.
+	stock_error = False
+	try:
+		_comp_reverse_stock(co.name, pos_profile)
+	except Exception:
+		stock_error = True
+		frappe.log_error(frappe.get_traceback(), "comp order stock " + cstr(co.name))
+
+	frappe.db.commit()
+	_publish(TABLE_EVENT, {"table_label": table_label, "comp_order": co.name, "action": "comp"})
+	result = _comp_result(co.name)
+	if stock_error:
+		# Comp recorded but its expected stock reversal did not complete — surface it
+		# (Reviewer #5) instead of returning silent success; admin re-issues from the doc.
+		result["stock_warning"] = _(
+			"Complimentary order {0} was recorded, but its stock reversal did not complete. "
+			"Please review Stock Entries and re-issue if needed."
+		).format(co.name)
+	return result
+
+
+@frappe.whitelist()
+def approve_complimentary_order(name, decision, approval_note=None):
+	"""Approve or reject a Pending comp. Role-guarded (approver roles only). Only
+	Pending -> Approved / Rejected is legal (Approved/Rejected are terminal). The
+	controller on_update stamps approved_by/approved_on and, on Rejected, returns the
+	stock issued at creation."""
+	if decision not in ("Approved", "Rejected"):
+		frappe.throw(_("Invalid decision {0}").format(decision))
+	_guard_comp_approver()
+	doc = frappe.get_doc("POS Complimentary Order", name)
+	if doc.status != "Pending":
+		frappe.throw(
+			_("Complimentary order {0} is already {1}").format(name, _(doc.status))
+		)
+	doc.status = decision
+	if approval_note is not None:
+		doc.approval_note = approval_note
+	doc.save(ignore_permissions=True)
+	frappe.db.commit()
+	_publish(TABLE_EVENT, {"comp_order": name, "action": "comp_decision", "status": decision})
+	return {"comp_order": name, "status": decision}
