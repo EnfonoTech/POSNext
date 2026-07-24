@@ -562,7 +562,14 @@ export async function silentPrintDoc(doctype, name, printFormat) {
 <body>${html}</body>
 </html>`;
 
-	await qzPrintHTML(fullHTML);
+	try {
+		await qzPrintHTML(fullHTML);
+	} catch (e) {
+		// QZ Tray not running/available — fall back to browser print so the
+		// document (e.g. EOD report at shift close) still prints instead of erroring.
+		log.warn("QZ Tray unavailable — printing via browser fallback:", e);
+		await printViaIframe(fullHTML);
+	}
 	return true;
 }
 
