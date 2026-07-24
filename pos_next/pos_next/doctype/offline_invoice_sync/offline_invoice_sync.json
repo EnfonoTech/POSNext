@@ -77,7 +77,7 @@
  "links": [],
  "modified": "2025-12-30 12:00:00.000000",
  "modified_by": "Administrator",
- "module": "FatehPOS",
+ "module": "POS Next",
  "name": "Offline Invoice Sync",
  "naming_rule": "Random",
  "owner": "Administrator",

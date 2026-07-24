@@ -14,7 +14,7 @@
  "margin_left": 0.0,
  "margin_right": 0.0,
  "margin_top": 0.0,
- "module": "FatehPOS",
+ "module": "POS Next",
  "name": "POS Next EOD Report",
  "print_format_builder": 0,
  "print_format_builder_beta": 0,
