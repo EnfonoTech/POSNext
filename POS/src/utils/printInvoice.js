@@ -373,6 +373,79 @@ async function resolvePrintSettings(posProfile, printFormat, letterhead) {
 }
 
 // ============================================================================
+// Fast printing (fetch receipt HTML only — no full /printview page load)
+// ============================================================================
+
+function printViaIframe(fullHTML) {
+	return new Promise((resolve) => {
+		const prev = document.getElementById("fp-print-frame");
+		if (prev) prev.remove();
+		const iframe = document.createElement("iframe");
+		iframe.id = "fp-print-frame";
+		iframe.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden;";
+		iframe.onload = () => {
+			try {
+				iframe.contentWindow.focus();
+				iframe.contentWindow.print();
+			} catch (e) {
+				log.error("iframe print failed:", e);
+			}
+			setTimeout(() => iframe.remove(), 1500);
+			resolve(true);
+		};
+		document.body.appendChild(iframe);
+		iframe.srcdoc = fullHTML;
+	});
+}
+
+/**
+ * Print a receipt fast: fetch only the rendered receipt HTML (get_html_and_style)
+ * instead of loading the whole /printview page. Inside the FatehPOS desktop app
+ * (Tauri) it hands the HTML to the native silent printer; in a browser it prints
+ * via a hidden iframe (instant; the OS dialog is suppressed under Chrome
+ * --kiosk-printing). Falls back to the classic /printview window on any failure.
+ */
+export async function printInvoice(invoiceData, printFormat = null, letterhead = null) {
+	try {
+		if (!invoiceData?.name) throw new Error("Invalid invoice data");
+		invoiceData = await hydrateLocalOnlyInvoice(invoiceData);
+		if (isLocalOnlyInvoiceName(invoiceData.name)) {
+			if (invoiceData.items?.length > 0) return printInvoiceCustom(invoiceData);
+			throw new Error(
+				__("This offline receipt is no longer in browser storage. Sync the invoice, then print from history.")
+			);
+		}
+
+		const doctype = invoiceData.doctype || "Sales Invoice";
+		const format = printFormat || DEFAULT_PRINT_FORMAT;
+
+		const result = await call("frappe.www.printview.get_html_and_style", {
+			doc: doctype,
+			name: invoiceData.name,
+			print_format: format,
+			no_letterhead: letterhead ? 0 : 1,
+		});
+		const html = result?.html || result?.message?.html;
+		const style = result?.style || result?.message?.style || "";
+		if (!html) throw new Error("Empty print HTML from server");
+
+		const fullHTML = `<!DOCTYPE html>\n<html>\n<head><meta charset="UTF-8"><style>${style}</style></head>\n<body>${html}</body>\n</html>`;
+
+		// FatehPOS desktop (Tauri): native silent print, no dialog.
+		const tauriInvoke = window.__TAURI__?.core?.invoke;
+		if (typeof tauriInvoke === "function") {
+			await tauriInvoke("print_receipt", { html: fullHTML });
+			return true;
+		}
+
+		return await printViaIframe(fullHTML);
+	} catch (error) {
+		log.error("Fast print failed, falling back to /printview window:", error);
+		return printInvoiceViaWindow(invoiceData, printFormat, letterhead);
+	}
+}
+
+// ============================================================================
 // Browser printing (opens /printview in a new window)
 // ============================================================================
 
@@ -381,7 +454,7 @@ async function resolvePrintSettings(posProfile, printFormat, letterhead) {
  * The page includes trigger_print=1 so the OS print dialog appears automatically.
  * Falls back to the hardcoded receipt template if the popup is blocked.
  */
-export async function printInvoice(invoiceData, printFormat = null, letterhead = null) {
+async function printInvoiceViaWindow(invoiceData, printFormat = null, letterhead = null) {
 	try {
 		if (!invoiceData?.name) throw new Error("Invalid invoice data");
 
