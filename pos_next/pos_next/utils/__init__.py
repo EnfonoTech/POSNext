@@ -1,1 +1,1 @@
-# Utility package for POS Next doctypes/helpers.
+# Utility package for FatehPOS doctypes/helpers.

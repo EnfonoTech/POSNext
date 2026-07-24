@@ -202,7 +202,7 @@
  "links": [],
  "modified": "2026-06-03 15:54:11.316195",
  "modified_by": "Administrator",
- "module": "POS Next",
+ "module": "FatehPOS",
  "name": "POS Closing Shift",
  "naming_rule": "Expression",
  "owner": "Administrator",

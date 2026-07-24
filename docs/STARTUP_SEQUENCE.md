@@ -1,6 +1,6 @@
-# POS Next Startup Sequence
+# FatehPOS Startup Sequence
 
-This document describes the initialization flow of the POS Next frontend application, from initial page load to fully interactive state.
+This document describes the initialization flow of the FatehPOS frontend application, from initial page load to fully interactive state.
 
 ## Overview
 
@@ -132,7 +132,7 @@ After authentication, the app preloads essential data in a single API call inste
 │    "locale": "ar",              // User's language           │
 │    "shift": { ... },            // Active POS shift          │
 │    "pos_profile": { ... },      // POS Profile settings      │
-│    "pos_settings": { ... },     // POS Next settings         │
+│    "pos_settings": { ... },     // FatehPOS settings         │
 │    "payment_methods": [...]     // Available payments        │
 │  }                                                           │
 └──────────────────────────────────────────────────────────────┘

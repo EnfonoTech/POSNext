@@ -5,7 +5,7 @@
 		<div class="max-w-md w-full space-y-8">
 			<div class="text-center">
 				<h2 class="mt-6 text-3xl font-extrabold text-gray-900">
-					{{ __("Sign in to POS Next") }}
+					{{ __("Sign in to FatehPOS") }}
 				</h2>
 				<p class="mt-2 text-sm text-gray-600">
 					{{ __("Access your point of sale system") }}

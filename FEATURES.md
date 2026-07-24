@@ -1,4 +1,4 @@
-# POS Next - Feature Guide
+# FatehPOS - Feature Guide
 
 **Version:** 1.0.2
 **Perfect for:** Retail Stores, Restaurants, Cafes, and Service Businesses
@@ -7,10 +7,10 @@
 
 ---
 
-## Why Choose POS Next?
+## Why Choose FatehPOS?
 
 ### 🚀 Works Offline
-Never lose a sale due to internet problems. POS Next works perfectly without internet and syncs automatically when back online.
+Never lose a sale due to internet problems. FatehPOS works perfectly without internet and syncs automatically when back online.
 
 ### ⚡ Lightning Fast
 Serve more customers in less time. Optimized for speed on any device - tablets, phones, or computers.
@@ -316,7 +316,7 @@ Stock levels and prices update instantly across all your devices. No manual refr
 
 ### vs. Standard ERPNext POS
 
-| Feature | POS Next | Standard POS |
+| Feature | FatehPOS | Standard POS |
 |---------|----------|--------------|
 | Offline Mode | ✅ Full | ⚠️ Limited |
 | Mobile | ✅ Perfect | ⚠️ Desktop-focused |
@@ -327,7 +327,7 @@ Stock levels and prices update instantly across all your devices. No manual refr
 
 ### vs. Paid POS Systems
 
-**Why POS Next Wins:**
+**Why FatehPOS Wins:**
 - ✅ **100% Free** - No monthly fees ever
 - ✅ **Open Source** - Modify anything you want
 - ✅ **No Limits** - Unlimited users and terminals

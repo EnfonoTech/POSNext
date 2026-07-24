@@ -1,5 +1,5 @@
 """
-POS Next Customer API
+FatehPOS Customer API
 Handles customer search, creation, and management for POS operations
 """
 

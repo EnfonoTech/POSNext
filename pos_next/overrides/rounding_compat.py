@@ -3,7 +3,7 @@ Compatibility patch for mixed Frappe/ERPNext versions.
 
 ERPNext may call Document.round_floats_in(..., do_not_round_fields=[...]),
 while older Frappe versions only support round_floats_in(doc, fieldnames=None).
-This patch adds backward-compatible handling in POS Next without core edits.
+This patch adds backward-compatible handling in FatehPOS without core edits.
 """
 
 from __future__ import annotations

@@ -155,7 +155,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Promotions list filtered to only show selling schemes
 
 - **Pricing Rule Filter** (#155)
-  - Guard `pos_only` pricing rule filter for sites without POS Next installed
+  - Guard `pos_only` pricing rule filter for sites without FatehPOS installed
 
 - **Discount Calculation**
   - Fixed discount calculation for fixed amount coupons
@@ -550,7 +550,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Arabic Translations**
   - Fixed truncated translation key for cart requirements message
-  - Keep POS Next brand name consistent across translations
+  - Keep FatehPOS brand name consistent across translations
   - Fixed "Apply Coupon" and "serials" translations for clarity
 
 ## [1.10.0] - 2025-11-28

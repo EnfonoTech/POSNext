@@ -2,7 +2,7 @@
 # For license information, please see license.txt
 
 """
-Wallet API for POS Next
+Wallet API for FatehPOS
 Handles wallet payments, validation, and loyalty points conversion
 """
 

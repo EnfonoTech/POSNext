@@ -570,7 +570,7 @@ def _create_payment_entry_from_advance(invoice_doc, payment_entry_name, amount):
 
 def get_credit_redeem_remark(invoice_name):
 	"""Get remark for credit redemption journal entry."""
-	return f"POS Next credit redemption for invoice {invoice_name}"
+	return f"FatehPOS credit redemption for invoice {invoice_name}"
 
 
 @frappe.whitelist()

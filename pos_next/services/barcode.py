@@ -1,5 +1,5 @@
 """
-Barcode resolver service for POS Next.
+Barcode resolver service for FatehPOS.
 
 This module provides an optional integration with the barcode_resolver app.
 When barcode_resolver is installed, it enables advanced barcode parsing
@@ -135,7 +135,7 @@ def _get_barcode_rules_for_profile(pos_profile: str) -> list[str] | None:
 	Returns None when no per-profile configuration exists, which signals
 	the resolver to consider every active Barcode Rule. This keeps the
 	resolver functional on sites that have not yet migrated to the
-	POS Next `POS Settings` doctype (which adds `pos_profile` +
+	FatehPOS `POS Settings` doctype (which adds `pos_profile` +
 	`barcode_rules`).
 	"""
 	settings_name = frappe.db.get_value("POS Settings", {"pos_profile": pos_profile}, "name")

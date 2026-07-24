@@ -1,10 +1,10 @@
 # Offline Invoice Sync System
 
-This document describes the offline invoice synchronization system in POS Next, including the deduplication mechanism that prevents duplicate invoices from being created during network failures.
+This document describes the offline invoice synchronization system in FatehPOS, including the deduplication mechanism that prevents duplicate invoices from being created during network failures.
 
 ## Overview
 
-POS Next supports fully offline operation, allowing cashiers to continue creating invoices even when the network connection is unavailable. When connectivity is restored, pending invoices are automatically synchronized to the server.
+FatehPOS supports fully offline operation, allowing cashiers to continue creating invoices even when the network connection is unavailable. When connectivity is restored, pending invoices are automatically synchronized to the server.
 
 ### Key Features
 

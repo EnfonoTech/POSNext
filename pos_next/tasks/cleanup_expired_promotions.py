@@ -1,7 +1,7 @@
-# Copyright (c) 2025, POS Next and contributors
+# Copyright (c) 2025, FatehPOS and contributors
 # For license information, please see license.txt
 
-"""Scheduled tasks for POS Next."""
+"""Scheduled tasks for FatehPOS."""
 
 import frappe
 from frappe.utils import getdate, nowdate

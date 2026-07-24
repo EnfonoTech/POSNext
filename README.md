@@ -1,8 +1,8 @@
-# POS Next
+# FatehPOS
 
 <div align="center">
 
-![POS Next Banner](docs/screenshots/01-main-dashboard.png)
+![FatehPOS Banner](docs/screenshots/01-main-dashboard.png)
 
 **A modern, lightning-fast Point of Sale system for ERPNext**
 
@@ -27,9 +27,9 @@
 
 ---
 
-## 🎯 Why POS Next?
+## 🎯 Why FatehPOS?
 
-POS Next is a **complete rewrite** of the ERPNext POS system, built from the ground up with modern technologies to deliver:
+FatehPOS is a **complete rewrite** of the ERPNext POS system, built from the ground up with modern technologies to deliver:
 
 - ⚡ **Blazing Fast Performance** - Vue 3 + Vite for instant load times
 - 🔄 **True Offline Support** - Keep selling even when your internet drops
@@ -211,7 +211,7 @@ bench start
 
 ## 🔄 Updating
 
-Already have POS Next? Update to the latest version:
+Already have FatehPOS? Update to the latest version:
 
 ```bash
 cd ~/frappe-bench/apps/pos_next
@@ -254,8 +254,8 @@ Visit: `https://your-site.com/pos` or `http://localhost:8000/pos`
 
 ### Optional: Create Promotional Offers
 
-**POS Offer**: `POS Next > POS Offer > New`
-**POS Coupon**: `POS Next > POS Coupon > New`
+**POS Offer**: `FatehPOS > POS Offer > New`
+**POS Coupon**: `FatehPOS > POS Coupon > New`
 
 ## ⌨️ Keyboard Shortcuts
 
@@ -271,7 +271,7 @@ Visit: `https://your-site.com/pos` or `http://localhost:8000/pos`
 
 ### Offline Mode
 
-Never lose a sale! POS Next works seamlessly even without internet:
+Never lose a sale! FatehPOS works seamlessly even without internet:
 - All item data cached locally
 - Stock levels synced in background
 - Invoices saved and uploaded when online

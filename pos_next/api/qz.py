@@ -156,8 +156,8 @@ def setup_qz_certificate():
 	# Build self-signed certificate (valid ~31 years)
 	subject = issuer = x509.Name(
 		[
-			x509.NameAttribute(NameOID.COMMON_NAME, "POS Next QZ Tray Signing"),
-			x509.NameAttribute(NameOID.ORGANIZATION_NAME, frappe.db.get_default("company") or "POS Next"),
+			x509.NameAttribute(NameOID.COMMON_NAME, "FatehPOS QZ Tray Signing"),
+			x509.NameAttribute(NameOID.ORGANIZATION_NAME, frappe.db.get_default("company") or "FatehPOS"),
 		]
 	)
 

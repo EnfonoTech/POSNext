@@ -1,8 +1,8 @@
-# Copyright (c) 2024, POS Next and contributors
+# Copyright (c) 2024, FatehPOS and contributors
 # For license information, please see license.txt
 
 """
-Shared constants for POS Next API modules.
+Shared constants for FatehPOS API modules.
 
 This module contains shared constants, field lists, and default values
 used across multiple API modules to maintain DRY principles.

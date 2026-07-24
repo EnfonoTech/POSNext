@@ -1,8 +1,8 @@
-# POS Awesome to POS Next Migration Plan
+# POS Awesome to FatehPOS Migration Plan
 
 ## Executive Summary
 
-This document outlines a comprehensive migration strategy from POS Awesome to POS Next, focusing on modern architecture principles, clean code practices, and maintainable design patterns using Vue 3, Pinia, and Frappe backend.
+This document outlines a comprehensive migration strategy from POS Awesome to FatehPOS, focusing on modern architecture principles, clean code practices, and maintainable design patterns using Vue 3, Pinia, and Frappe backend.
 
 ## Current State Analysis
 
@@ -12,7 +12,7 @@ This document outlines a comprehensive migration strategy from POS Awesome to PO
 - **Backend:** 78 Python API methods, 18 custom DocTypes
 - **Features:** Complete POS solution with offline support, promotions, multi-currency, etc.
 
-### POS Next (Target)
+### FatehPOS (Target)
 - **Technology:** Vue 3 + Frappe UI (Tailwind CSS), Clean Architecture
 - **Current Status:** Basic scaffold with login/authentication
 - **Goal:** Feature parity with improved architecture
@@ -526,7 +526,7 @@ def migrate_data():
 ## Rollback Strategy
 
 ### Parallel Running
-1. Deploy POS Next to staging
+1. Deploy FatehPOS to staging
 2. Run both systems in parallel
 3. Gradual migration of POS profiles
 4. Monitor for issues
@@ -592,7 +592,7 @@ def migrate_data():
 
 ## Conclusion
 
-This migration plan provides a structured approach to modernizing POS Awesome into POS Next with clean architecture, SOLID principles, and modern development practices. The phased approach ensures minimal disruption while delivering a maintainable, scalable, and performant POS solution.
+This migration plan provides a structured approach to modernizing POS Awesome into FatehPOS with clean architecture, SOLID principles, and modern development practices. The phased approach ensures minimal disruption while delivering a maintainable, scalable, and performant POS solution.
 
 ## Appendices
 

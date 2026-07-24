@@ -1,10 +1,10 @@
 # Copyright (c) 2025, BrainWise and contributors
 # For license information, please see license.txt
 
-"""Integration tests for POS Next's promotion engine.
+"""Integration tests for FatehPOS's promotion engine.
 
 These tests drive the full apply_offers → update_invoice → submit_invoice
-pipeline through every Pricing Rule shape POS Next claims to support, and
+pipeline through every Pricing Rule shape FatehPOS claims to support, and
 assert the saved invoice ends up at the expected grand_total / paid_amount /
 status.
 
@@ -814,7 +814,7 @@ class TestPromotions(FrappeTestCase):
 	def test_partial_paid_regression(self):
 		"""Canary for the ERPNext `remove_pricing_rule_for_item` interaction.
 
-		With `ignore_pricing_rule=1` set on the doc (as POS Next always does)
+		With `ignore_pricing_rule=1` set on the doc (as FatehPOS always does)
 		AND `item.pricing_rules` non-empty AND the doc already exists in DB,
 		ERPNext's `get_pricing_rule_for_item` previously took a branch that
 		zeroed `discount_percentage` / `discount_amount` / `rate` on the next
@@ -849,7 +849,7 @@ class TestPromotions(FrappeTestCase):
 		self.assertAlmostEqual(flt(final.items[0].discount_percentage), 15, places=2)
 		self.assertAlmostEqual(flt(final.items[0].discount_amount), 7.5, places=2)
 		self.assertAlmostEqual(flt(final.items[0].rate), 42.5, places=2)
-		# POS Next clears item.pricing_rules pre-save to avoid the ERPNext
+		# FatehPOS clears item.pricing_rules pre-save to avoid the ERPNext
 		# removal branch; the rule is still effectively applied via the
 		# discount fields.
 		self.assertFalse(final.items[0].pricing_rules)

@@ -552,7 +552,7 @@
  "links": [],
  "modified": "2026-06-03 15:54:09.903964",
  "modified_by": "Administrator",
- "module": "POS Next",
+ "module": "FatehPOS",
  "name": "POS Settings",
  "naming_rule": "By fieldname",
  "owner": "Administrator",

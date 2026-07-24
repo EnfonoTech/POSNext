@@ -370,7 +370,7 @@ doc_events = {
 ### Prerequisites
 
 1. ERPNext with Loyalty Program module
-2. POS Next installed
+2. FatehPOS installed
 3. Chart of Accounts configured
 
 ### Step-by-Step Setup

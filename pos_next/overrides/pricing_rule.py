@@ -40,9 +40,9 @@ def _has_pos_only_column():
 	"""Check whether the current site's Pricing Rule table has the pos_only column.
 
 	The monkey-patch in __init__.py is process-wide and affects ALL sites on the
-	bench, but only sites with POS Next installed have the pos_only custom field.
+	bench, but only sites with FatehPOS installed have the pos_only custom field.
 	This guard prevents 'Unknown column' errors on sites that share the bench
-	but don't have POS Next.
+	but don't have FatehPOS.
 
 	Cached per-site per-worker so the DB introspection runs only once.
 	"""
@@ -63,7 +63,7 @@ def _has_pos_only_column():
 
 
 def sync_pos_only_to_pricing_rules(doc, method=None):
-	"""Sync POS Next custom flags from Promotional Scheme to its generated Pricing Rules.
+	"""Sync FatehPOS custom flags from Promotional Scheme to its generated Pricing Rules.
 
 	Called via doc_events on_update hook, which runs after ERPNext's
 	PromotionalScheme.on_update() has already created/updated the Pricing Rules.

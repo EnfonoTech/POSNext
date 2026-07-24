@@ -1,9 +1,10 @@
-# Copyright (c) 2024, POS Next and contributors
+# Copyright (c) 2024, FatehPOS and contributors
 # For license information, please see license.txt
 
 
 import frappe
 from frappe import _
+from frappe.utils import cint
 
 from pos_next.api.utilities import _parse_list_parameter, check_user_company
 

@@ -1,7 +1,7 @@
 # EOD Shift Report Print Design
 
 Date: 2026-05-24
-App: POS Next
+App: FatehPOS
 Scope: POS Closing Shift auto-print and Desk reprint for End-of-Day report.
 
 ## Problem Statement

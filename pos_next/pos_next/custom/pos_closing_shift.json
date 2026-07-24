@@ -7,7 +7,7 @@
    "fieldtype": "Link",
    "insert_after": "pos_opening_shift",
    "label": "Bank Deposit",
-   "module": "POS Next",
+   "module": "FatehPOS",
    "name": "POS Closing Shift-custom_bank_deposit",
    "no_copy": 1,
    "options": "Bank Deposits",

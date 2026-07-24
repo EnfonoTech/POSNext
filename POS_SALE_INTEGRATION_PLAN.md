@@ -1,7 +1,7 @@
-# POS Sale Integration Plan - POS Next
+# POS Sale Integration Plan - FatehPOS
 
 ## Overview
-This document outlines the strategy for integrating the POS sale functionality into POS Next, following Frappe UI design patterns and maintaining consistency with the existing login/shift management implementation.
+This document outlines the strategy for integrating the POS sale functionality into FatehPOS, following Frappe UI design patterns and maintaining consistency with the existing login/shift management implementation.
 
 ## Current State Analysis
 
@@ -24,7 +24,7 @@ This document outlines the strategy for integrating the POS sale functionality i
 6. Draft invoice management
 7. Customer selection and management
 
-### POS Next Current State
+### FatehPOS Current State
 **Existing:**
 - ✅ Login page with Frappe UI components
 - ✅ Shift management (opening/closing)
@@ -849,4 +849,4 @@ After reviewing this plan:
 3. Start with Phase 1: Backend API setup
 4. Iterate based on feedback
 
-This integration will transform POS Next from shift management to a full-featured POS system while maintaining code quality and design consistency.
+This integration will transform FatehPOS from shift management to a full-featured POS system while maintaining code quality and design consistency.

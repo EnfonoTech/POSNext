@@ -1,5 +1,5 @@
 /**
- * Currency Utility for POS Next
+ * Currency Utility for FatehPOS
  * Handles formatting and rounding with ERPNext System Settings compatibility
  *
  * Rounding Methods (matches frappe/utils/data.py):

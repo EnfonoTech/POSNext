@@ -1,4 +1,4 @@
-"""Utility helpers shared across the POS Next backend."""
+"""Utility helpers shared across the FatehPOS backend."""
 
 from __future__ import annotations
 

@@ -1,8 +1,8 @@
-# Copyright (c) 2024, POS Next and contributors
+# Copyright (c) 2024, FatehPOS and contributors
 # For license information, please see license.txt
 
 """
-Real-time event handlers for POS Next.
+Real-time event handlers for FatehPOS.
 Emits Socket.IO events when stock-affecting transactions occur.
 """
 

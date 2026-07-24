@@ -1,5 +1,5 @@
 /**
- * POS Next - Application Entry Point
+ * FatehPOS - Application Entry Point
  *
  * Initialization sequence:
  * 1. Register PWA service worker

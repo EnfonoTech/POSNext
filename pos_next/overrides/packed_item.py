@@ -2,7 +2,7 @@
 Runtime patch for ERPNext packed item key matching.
 
 Why this patch exists:
-- POS Next saves Sales Invoice drafts multiple times during offer/payment flows.
+- FatehPOS saves Sales Invoice drafts multiple times during offer/payment flows.
 - ERPNext's packed item matching can append duplicate bundle rows when keys are
   built from inconsistent identifiers across save cycles.
 - We patch key generation to use a stable parent-row identifier.

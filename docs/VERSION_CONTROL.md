@@ -1,10 +1,10 @@
-# POS Next - Version Control System
+# FatehPOS - Version Control System
 
-This document explains the version control mechanism implemented in POS Next.
+This document explains the version control mechanism implemented in FatehPOS.
 
 ## Overview
 
-POS Next uses a comprehensive version control system that tracks both application versions and build versions for effective cache busting and version management.
+FatehPOS uses a comprehensive version control system that tracks both application versions and build versions for effective cache busting and version management.
 
 ## Version Types
 
@@ -239,10 +239,10 @@ console.log(__BUILD_VERSION__)  // "1730043123456"
 - Vite plugin generates version.json
 - Backend utility functions for version retrieval
 - Cache busting through query parameters
-- **Location**: POS Next uses `public/pos/` for build assets
-- **Fallback**: POS Next checks manifest.webmanifest mtime as additional fallback
-- **Script**: POS Next includes automated version bump script
-- **Documentation**: POS Next has comprehensive version management guide
+- **Location**: FatehPOS uses `public/pos/` for build assets
+- **Fallback**: FatehPOS checks manifest.webmanifest mtime as additional fallback
+- **Script**: FatehPOS includes automated version bump script
+- **Documentation**: FatehPOS has comprehensive version management guide
 
 ## Future Enhancements
 

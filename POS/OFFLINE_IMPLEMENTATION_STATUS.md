@@ -1,4 +1,4 @@
-# Offline Implementation Status - POS Next
+# Offline Implementation Status - FatehPOS
 
 ## Current Status: ⚠️ INCOMPLETE - POS Cannot Work Without Backend
 
@@ -33,7 +33,7 @@ The POS application currently **does not work when the backend is offline** beca
    - Updates local cache with fresh data
    - Clears synced items from queue
 
-### ❌ POS Next - Currently NOT Offline Capable
+### ❌ FatehPOS - Currently NOT Offline Capable
 
 **Current Implementation:**
 1. **No Pre-Loading:**

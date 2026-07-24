@@ -203,7 +203,7 @@ Total: 800 SAR
 
 ### View Customer Wallets
 
-1. Go to **POS Next > Wallet**
+1. Go to **FatehPOS > Wallet**
 2. View list of all wallets with:
    - Customer name
    - Current balance
@@ -211,7 +211,7 @@ Total: 800 SAR
 
 ### Add Manual Credit
 
-1. Go to **POS Next > Wallet Transaction**
+1. Go to **FatehPOS > Wallet Transaction**
 2. Click **New**
 3. Fill in:
 

@@ -1,4 +1,4 @@
-# API module for POS Next
+# API module for FatehPOS
 
 import frappe
 

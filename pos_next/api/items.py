@@ -1,4 +1,4 @@
-# Copyright (c) 2024, POS Next and contributors
+# Copyright (c) 2024, FatehPOS and contributors
 # For license information, please see license.txt
 
 import json
@@ -230,7 +230,7 @@ def get_item_detail(item, doc=None, warehouse=None, price_list=None, company=Non
 				exchange_rate = get_exchange_rate(price_list_currency, company_currency, today)
 			except Exception:
 				frappe.log_error(
-					f"Missing exchange rate from {price_list_currency} to {company_currency}", "POS Next"
+					f"Missing exchange rate from {price_list_currency} to {company_currency}", "FatehPOS"
 				)
 
 		item["price_list_currency"] = price_list_currency

@@ -1,6 +1,6 @@
-# POS Next Documentation
+# FatehPOS Documentation
 
-Welcome to the POS Next documentation directory. This folder contains comprehensive guides for developers and contributors.
+Welcome to the FatehPOS documentation directory. This folder contains comprehensive guides for developers and contributors.
 
 ## 📚 Available Documentation
 
@@ -105,7 +105,7 @@ docs/
 
 ## 🔗 External Resources
 
-- [POS Next Repository](https://github.com/your-org/pos_next)
+- [FatehPOS Repository](https://github.com/your-org/pos_next)
 - [ERPNext Documentation](https://docs.erpnext.com)
 - [Frappe Framework Documentation](https://frappeframework.com/docs)
 - [Vite Documentation](https://vitejs.dev)

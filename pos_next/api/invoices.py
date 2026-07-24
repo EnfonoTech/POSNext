@@ -856,7 +856,7 @@ def update_invoice(data):
 			# ERPNext will recalculate if needed, but preserving frontend rate
 			# prevents rounding issues and ensures UI matches invoice
 
-			# POS Next computes offers itself (via apply_offers) and sends each
+			# FatehPOS computes offers itself (via apply_offers) and sends each
 			# item with discount_percentage / discount_amount / rate already set.
 			# We pair that with invoice_doc.ignore_pricing_rule = 1 so ERPNext's
 			# own pricing engine stays out of the way.
@@ -943,7 +943,7 @@ def update_invoice(data):
 		#   cost_center, etc.) without overwriting values already set.
 		#   Payment accounts are set separately via _set_payment_accounts() below.
 		#
-		# This is safe on all ERPNext versions because POS Next already sets
+		# This is safe on all ERPNext versions because FatehPOS already sets
 		# the fields that for_validate=True skips:
 		#   - ignore_pricing_rule  → set above (line ~752)
 		#   - customer             → sent from frontend

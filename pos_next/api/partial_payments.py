@@ -2,7 +2,7 @@
 # For license information, please see license.txt
 
 """
-Partial Payments API for POS Next
+Partial Payments API for FatehPOS
 
 Professional implementation following ERPNext best practices:
 - Payment Ledger as single source of truth for accounting integrity

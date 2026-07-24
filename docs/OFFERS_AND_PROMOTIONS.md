@@ -1,10 +1,10 @@
 # Offers and Promotions System
 
-This document explains how POS Next integrates with ERPNext's Pricing Rules and Promotional Schemes to automatically apply discounts.
+This document explains how FatehPOS integrates with ERPNext's Pricing Rules and Promotional Schemes to automatically apply discounts.
 
 ## Overview
 
-POS Next supports automatic offer application based on cart contents. When items are added to the cart, the system:
+FatehPOS supports automatic offer application based on cart contents. When items are added to the cart, the system:
 
 1. Checks eligibility against available Pricing Rules/Promotional Schemes
 2. Automatically applies eligible offers
@@ -64,7 +64,7 @@ This allows ERPNext to accumulate quantities across different items in the same 
 
 ### Pricing Rule Generated
 
-When you save a Promotional Scheme, ERPNext automatically creates underlying Pricing Rules (e.g., `PRLE-0003`). POS Next works with these generated rules.
+When you save a Promotional Scheme, ERPNext automatically creates underlying Pricing Rules (e.g., `PRLE-0003`). FatehPOS works with these generated rules.
 
 ## Frontend Architecture
 

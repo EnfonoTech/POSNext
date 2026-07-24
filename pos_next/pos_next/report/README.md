@@ -1,6 +1,6 @@
-# POS Next Pro - Reports Documentation
+# FatehPOS Pro - Reports Documentation
 
-This directory contains the reporting modules for POS Next Pro. All reports are implemented as Frappe Script Reports and are accessible from the Frappe Desk.
+This directory contains the reporting modules for FatehPOS Pro. All reports are implemented as Frappe Script Reports and are accessible from the Frappe Desk.
 
 ## Available Reports
 

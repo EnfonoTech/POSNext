@@ -5,7 +5,7 @@
 			<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 				<div class="flex justify-between h-16">
 					<div class="flex items-center space-x-4">
-						<h1 class="text-xl font-semibold text-gray-900">{{ __("POS Next") }}</h1>
+						<h1 class="text-xl font-semibold text-gray-900">{{ __("FatehPOS") }}</h1>
 
 						<!-- Shift Status Indicator -->
 						<div
@@ -57,7 +57,7 @@
 				<div class="border-4 border-dashed border-gray-200 rounded-lg min-h-96 p-8">
 					<div class="text-center">
 						<h2 class="text-2xl font-bold text-gray-900 mb-4">
-							{{ __("Welcome to POS Next!") }}
+							{{ __("Welcome to FatehPOS!") }}
 						</h2>
 						<p class="text-gray-600 mb-8">
 							{{ __("Your point of sale system is ready to use.") }}
@@ -254,7 +254,7 @@
 					</div>
 
 					<p v-else class="text-sm text-gray-500">
-						{{ __("Are you sure you want to sign out of POS Next?") }}
+						{{ __("Are you sure you want to sign out of FatehPOS?") }}
 					</p>
 				</div>
 			</template>

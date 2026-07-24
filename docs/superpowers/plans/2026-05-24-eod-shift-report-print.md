@@ -35,7 +35,7 @@ Feature: EOD shift report print on closing shift
 - Configure:
   - `doc_type = POS Closing Shift`
   - `name = POS Next EOD Report`
-  - `module = POS Next`
+  - `module = FatehPOS`
   - Jinja type with 80mm thermal styling
   - explicit LTR layout for receipt rows
 

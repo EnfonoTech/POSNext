@@ -1,5 +1,5 @@
 /**
- * @fileoverview Translation system for POS Next with offline support.
+ * @fileoverview Translation system for FatehPOS with offline support.
  *
  * This module provides:
  * - Vue plugin for global `__()` translation function
