@@ -454,14 +454,6 @@ export async function printInvoice(invoiceData, printFormat = null, letterhead =
 		if (!html) throw new Error("Empty print HTML from server");
 
 		const fullHTML = `<!DOCTYPE html>\n<html>\n<head><meta charset="UTF-8"><style>${style}</style></head>\n<body>${html}</body>\n</html>`;
-
-		// FatehPOS desktop (Tauri): native silent print, no dialog.
-		const tauriInvoke = window.__TAURI__?.core?.invoke;
-		if (typeof tauriInvoke === "function") {
-			await tauriInvoke("print_receipt", { html: fullHTML });
-			return true;
-		}
-
 		return await printViaIframe(fullHTML);
 	} catch (error) {
 		log.error("Fast print failed, falling back to /printview window:", error);
