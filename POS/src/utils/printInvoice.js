@@ -382,19 +382,43 @@ function printViaIframe(fullHTML) {
 		if (prev) prev.remove();
 		const iframe = document.createElement("iframe");
 		iframe.id = "fp-print-frame";
-		iframe.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden;";
-		iframe.onload = () => {
+		// Off-screen but REAL size — a 0x0/hidden iframe prints a blank page in Chrome.
+		iframe.style.cssText = "position:fixed;left:-10000px;top:0;width:320px;height:600px;border:0;";
+		document.body.appendChild(iframe);
+
+		let printed = false;
+		const doPrint = () => {
+			if (printed) return;
+			printed = true;
 			try {
 				iframe.contentWindow.focus();
 				iframe.contentWindow.print();
 			} catch (e) {
 				log.error("iframe print failed:", e);
 			}
-			setTimeout(() => iframe.remove(), 1500);
+			setTimeout(() => iframe.remove(), 2000);
 			resolve(true);
 		};
-		document.body.appendChild(iframe);
-		iframe.srcdoc = fullHTML;
+
+		// Write via document.write (avoids srcdoc CSP quirks on Frappe pages).
+		const doc = iframe.contentWindow.document;
+		doc.open();
+		doc.write(fullHTML);
+		doc.close();
+
+		// Wait for logo/QR images to load before printing, with a safety timeout.
+		const imgs = Array.from(doc.images || []);
+		if (imgs.length === 0) {
+			setTimeout(doPrint, 200);
+		} else {
+			let pending = imgs.length;
+			const one = () => { if (--pending <= 0) setTimeout(doPrint, 120); };
+			imgs.forEach((img) => {
+				if (img.complete) one();
+				else { img.onload = one; img.onerror = one; }
+			});
+		}
+		setTimeout(doPrint, 1800); // safety net
 	});
 }
 
