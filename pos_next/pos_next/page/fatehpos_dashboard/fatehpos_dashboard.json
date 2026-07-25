@@ -1,0 +1,24 @@
+{
+ "content": null,
+ "creation": "2026-07-25 00:00:00.000000",
+ "docstatus": 0,
+ "doctype": "Page",
+ "idx": 0,
+ "modified": "2026-07-25 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "POS Next",
+ "name": "fatehpos-dashboard",
+ "owner": "Administrator",
+ "page_name": "fatehpos-dashboard",
+ "roles": [
+  {"role": "Accounts Manager"},
+  {"role": "Accounts User"},
+  {"role": "Sales Manager"},
+  {"role": "Nexus POS Manager"},
+  {"role": "System Manager"}
+ ],
+ "script": null,
+ "standard": "Yes",
+ "style": null,
+ "title": "FatehPOS Dashboard"
+}
