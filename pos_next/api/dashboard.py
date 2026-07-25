@@ -121,6 +121,16 @@ def get_dashboard_data(from_date=None, to_date=None, company=None, cost_center=N
 		as_dict=True,
 	)
 
+	cashiers = frappe.db.sql(
+		f"""
+		SELECT si.owner AS k, COALESCE(SUM(si.grand_total), 0) AS v, COUNT(si.name) AS c
+		FROM `tabSales Invoice` si WHERE {where}
+		GROUP BY si.owner ORDER BY v DESC LIMIT 8
+		""",
+		values,
+		as_dict=True,
+	)
+
 	def pct(now, before):
 		now, before = flt(now), flt(before)
 		if not before:
@@ -148,6 +158,10 @@ def get_dashboard_data(from_date=None, to_date=None, company=None, cost_center=N
 		"payments": [{"label": r.k, "value": flt(r.v, 2)} for r in payments],
 		"items": [{"label": r.k, "value": flt(r.v, 2), "qty": flt(r.qty, 1)} for r in items],
 		"hourly": [{"label": f"{cint(r.k):02d}:00", "value": flt(r.v, 2)} for r in hourly],
+		"cashiers": [
+			{"label": r.k, "value": flt(r.v, 2), "invoices": cint(r.c)} for r in cashiers
+		],
+		"prev": {"sales": flt(prev.sales, 2), "invoices": cint(prev.invoices)},
 	}
 
 
