@@ -1,9 +1,117 @@
+const FPD_CSS = `/* FatehPOS management dashboard — light/dark, design-system driven */
+.fpd {
+	color-scheme: light;
+	--surface-1: #ffffff;
+	--surface-2: #f7f7f5;
+	--border: #e6e5e1;
+	--text-primary: #0b0b0b;
+	--text-secondary: #52514e;
+	--text-muted: #86857f;
+	--series-1: #2a78d6;   /* blue   */
+	--series-2: #eb6834;   /* orange */
+	--series-3: #1baf7a;   /* aqua   */
+	--good: #087f5b;
+	--bad: #c92a2a;
+	--grid: #eeeeea;
+	padding-bottom: 40px;
+}
+:root[data-theme="dark"] .fpd,
+:root[data-theme="Dark"] .fpd {
+	color-scheme: dark;
+	--surface-1: #1a1a19;
+	--surface-2: #212120;
+	--border: #33332f;
+	--text-primary: #ffffff;
+	--text-secondary: #c3c2b7;
+	--text-muted: #8f8e85;
+	--series-1: #3987e5;
+	--series-2: #d95926;
+	--series-3: #199e70;
+	--good: #37b24d;
+	--bad: #ff6b6b;
+	--grid: #2b2b28;
+}
+
+.fpd-filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 18px; }
+.fpd-seg { display: inline-flex; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.fpd-seg button { border: 0; background: transparent; padding: 6px 12px; font-size: 12px; font-weight: 500;
+	color: var(--text-secondary); cursor: pointer; }
+.fpd-seg button + button { border-left: 1px solid var(--border); }
+.fpd-seg button.active { background: var(--series-1); color: #fff; }
+
+/* ---- stat tiles ---- */
+.fpd-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.fpd-kpi { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; position: relative; overflow: hidden; }
+.fpd-kpi-label { font-size: 11px; letter-spacing: .6px; text-transform: uppercase; color: var(--text-muted); font-weight: 600; }
+.fpd-kpi-value { font-size: 26px; line-height: 1.15; font-weight: 700; color: var(--text-primary); margin-top: 6px;
+	font-variant-numeric: tabular-nums; }
+.fpd-kpi-sub { font-size: 12px; margin-top: 4px; color: var(--text-secondary); display: flex; align-items: center; gap: 5px; }
+.fpd-up { color: var(--good); font-weight: 600; }
+.fpd-down { color: var(--bad); font-weight: 600; }
+.fpd-kpi-spark { position: absolute; right: 0; bottom: 0; opacity: .5; pointer-events: none; }
+
+/* ---- cards ---- */
+.fpd-grid { display: grid; gap: 12px; margin-bottom: 12px; }
+.fpd-g-2-1 { grid-template-columns: 2fr 1fr; }
+.fpd-g-1-1 { grid-template-columns: 1fr 1fr; }
+@media (max-width: 992px) { .fpd-g-2-1, .fpd-g-1-1 { grid-template-columns: 1fr; } }
+.fpd-card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 16px; min-width: 0; }
+.fpd-card-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px; gap: 8px; }
+.fpd-card-title { font-size: 12px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; color: var(--text-secondary); }
+.fpd-card-note { font-size: 11px; color: var(--text-muted); }
+.fpd-empty { text-align: center; color: var(--text-muted); font-size: 13px; padding: 34px 0; }
+
+/* ---- svg chart chrome ---- */
+.fpd-svg { display: block; width: 100%; overflow: visible; }
+.fpd-svg .grid line { stroke: var(--grid); stroke-width: 1; }
+.fpd-svg .axis text { fill: var(--text-muted); font-size: 10px; }
+.fpd-svg .axis-label { fill: var(--text-secondary); font-size: 11px; }
+.fpd-svg .val-label { fill: var(--text-primary); font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.fpd-svg .hit { fill: transparent; cursor: pointer; }
+.fpd-svg .crosshair { stroke: var(--text-muted); stroke-width: 1; stroke-dasharray: 3 3; }
+
+/* ---- listbars (horizontal) ---- */
+.fpd-rows { display: flex; flex-direction: column; gap: 10px; }
+.fpd-row { display: grid; grid-template-columns: minmax(90px, 34%) 1fr auto; gap: 10px; align-items: center; font-size: 12px; }
+.fpd-row-label { color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fpd-track { background: var(--surface-2); border-radius: 4px; height: 14px; position: relative; }
+.fpd-bar { height: 14px; border-radius: 4px; }
+.fpd-row-val { color: var(--text-primary); font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.fpd-row-sub { color: var(--text-muted); font-weight: 400; }
+
+/* ---- table ---- */
+.fpd-table { width: 100%; font-size: 12px; border-collapse: collapse; }
+.fpd-table th { text-align: left; color: var(--text-muted); font-weight: 600; text-transform: uppercase;
+	font-size: 10px; letter-spacing: .5px; padding: 6px 6px; border-bottom: 1px solid var(--border); }
+.fpd-table td { padding: 7px 6px; border-bottom: 1px solid var(--border); color: var(--text-primary); }
+.fpd-table tr:last-child td { border-bottom: 0; }
+.fpd-num { text-align: right; font-variant-numeric: tabular-nums; }
+.fpd-link { background: none; border: 0; padding: 0; font-size: 11px; color: var(--series-1); cursor: pointer; }
+
+/* ---- tooltip ---- */
+.fpd-tip { position: fixed; z-index: 1050; pointer-events: none; background: var(--surface-1);
+	border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; font-size: 12px;
+	color: var(--text-primary); box-shadow: 0 6px 18px rgba(0,0,0,.14); opacity: 0; transition: opacity .08s; }
+.fpd-tip.on { opacity: 1; }
+.fpd-tip b { font-variant-numeric: tabular-nums; }
+.fpd-tip-key { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 6px; }
+`;
+
+function fpd_inject_css() {
+	if (document.getElementById("fpd-style")) return;
+	const s = document.createElement("style");
+	s.id = "fpd-style";
+	s.textContent = FPD_CSS;
+	document.head.appendChild(s);
+}
+
 frappe.pages["fatehpos-dashboard"].on_page_load = function (wrapper) {
 	const page = frappe.ui.make_app_page({
 		parent: wrapper,
 		title: __("FatehPOS Dashboard"),
 		single_column: true,
 	});
+	fpd_inject_css();
 	new FatehPOSDashboard(page);
 };
 
