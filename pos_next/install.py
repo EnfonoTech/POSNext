@@ -142,6 +142,47 @@ def log_message(message, level="info", indent=0):
 		logger.info(message)
 
 
+
+def _snapshot_pos_settings_rows():
+	"""Read every POS Settings row before the table is dropped."""
+	try:
+		if not frappe.db.table_exists("POS Settings"):
+			return []
+		return frappe.db.sql("SELECT * FROM `tabPOS Settings`", as_dict=True) or []
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "POS Settings snapshot failed")
+		return []
+
+
+def _restore_pos_settings_rows(rows, quiet=False):
+	"""Re-insert preserved rows into the reclaimed table.
+
+	Only columns that exist in the reclaimed schema are written, so a shape
+	change between versions degrades to a partial restore instead of an error.
+	"""
+	if not rows:
+		return
+	try:
+		columns = {c.get("Field") for c in frappe.db.sql("SHOW COLUMNS FROM `tabPOS Settings`", as_dict=True)}
+		restored = 0
+		for row in rows:
+			payload = {k: v for k, v in row.items() if k in columns and v is not None}
+			if not payload.get("name"):
+				continue
+			placeholders = ", ".join(["%s"] * len(payload))
+			fields = ", ".join(f"`{k}`" for k in payload)
+			frappe.db.sql(
+				f"INSERT INTO `tabPOS Settings` ({fields}) VALUES ({placeholders})",
+				tuple(payload.values()),
+			)
+			restored += 1
+		frappe.db.commit()
+		if not quiet:
+			log_message(f"Restored {restored} POS Settings row(s)", level="success", indent=1)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "POS Settings restore failed")
+
+
 def reclaim_pos_settings_doctype(quiet=False):
 	"""Reclaim the `POS Settings` DocType from ERPNext.
 
@@ -175,6 +216,11 @@ def reclaim_pos_settings_doctype(quiet=False):
 			level="warning",
 		)
 
+	# Preserve existing per-profile settings — the table is about to be dropped.
+	# Without this, every migrate that hits this path silently wipes the site's
+	# POS configuration (tax_inclusive, silent-print printer, and friends).
+	preserved_rows = _snapshot_pos_settings_rows()
+
 	try:
 		# Commit any open transaction first — DROP TABLE is DDL and would
 		# otherwise trigger ImplicitCommitError under Frappe's safety check.
@@ -199,6 +245,7 @@ def reclaim_pos_settings_doctype(quiet=False):
 		frappe.reload_doc("pos_next", "doctype", "pos_barcode_rules", force=True)
 		frappe.reload_doc("pos_next", "doctype", "pos_allowed_locale", force=True)
 		frappe.db.commit()
+		_restore_pos_settings_rows(preserved_rows, quiet=quiet)
 	except Exception:
 		frappe.log_error(
 			title="POS Settings Reclaim Error",
