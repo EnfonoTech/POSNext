@@ -155,7 +155,7 @@ doc_events = {
 		"before_insert": "pos_next.api.branch.apply_branch_defaults",
 		"validate": [
 			"pos_next.api.sales_invoice_hooks.validate",
-			"pos_next.api.branch.apply_branch_to_items",
+			"pos_next.api.branch.apply_branch_to_children",
 			"pos_next.api.wallet.validate_wallet_payment",
 			"pos_next.overrides.pricing_rule.apply_min_max_price_discounts",
 		],

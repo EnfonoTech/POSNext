@@ -73,19 +73,36 @@ def _apply_pos_profile_branch(doc):
 		doc.branch = branch
 
 
-def apply_branch_to_items(doc, method=None):
-	"""validate: propagate the header branch/cost center onto item rows.
+def apply_branch_to_children(doc, method=None):
+	"""validate: push the branch and its cost center onto item AND tax rows.
 
-	Keeps item-level cost centers consistent with the branch so cost-center
-	reports agree with branch reports.
+	ERPNext fills a tax row's cost center from the *company* default, not from
+	the POS Profile, so VAT lands on the company's main cost center while the
+	income lines sit on the branch. That makes cost-center reports disagree with
+	branch reports. Tax rows are never meaningfully split per branch, so they are
+	forced onto the branch cost center; item rows are only filled when blank, so a
+	deliberate per-item split still survives.
 	"""
-	if not doc.get("branch") and not doc.get("cost_center"):
+	branch = doc.get("branch")
+	cost_center = doc.get("cost_center")
+	if not branch and not cost_center:
 		return
+
 	for item in doc.get("items") or []:
-		if doc.get("branch") and item.meta.get_field("branch") and not item.get("branch"):
-			item.branch = doc.branch
-		if doc.get("cost_center") and not item.get("cost_center"):
-			item.cost_center = doc.cost_center
+		if branch and item.meta.get_field("branch") and not item.get("branch"):
+			item.branch = branch
+		if cost_center and not item.get("cost_center"):
+			item.cost_center = cost_center
+
+	for tax in doc.get("taxes") or []:
+		if branch and tax.meta.get_field("branch"):
+			tax.branch = branch
+		if cost_center and tax.meta.get_field("cost_center"):
+			tax.cost_center = cost_center
+
+
+# Backwards-compatible alias: earlier hooks referenced the item-only name.
+apply_branch_to_items = apply_branch_to_children
 
 
 def _branches_configured() -> bool:
