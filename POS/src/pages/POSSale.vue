@@ -100,6 +100,25 @@
 						<span>{{ __("Invoice History") }}</span>
 					</button>
 					<button
+						@click="showDaySummary = true"
+						class="w-full text-start px-4 py-2.5 text-sm text-gray-700 hover:bg-emerald-50 flex items-center gap-3 transition-colors"
+					>
+						<svg
+							class="w-5 h-5 text-emerald-600"
+							fill="none"
+							stroke="currentColor"
+							viewBox="0 0 24 24"
+						>
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+							/>
+						</svg>
+						<span>{{ __("Day Summary") }}</span>
+					</button>
+					<button
 						v-if="offlineStore.pendingInvoicesCount > 0"
 						@click="
 							uiStore.showOfflineInvoicesDialog = true;
@@ -661,7 +680,13 @@
 				:company="shiftStore.profileCompany"
 			/>
 
-			<!-- Invoice Management -->
+			<!-- Day Summary -->
+		<DaySummaryDialog
+			v-model="showDaySummary"
+			:pos-profile="shiftStore.profileName"
+		/>
+
+		<!-- Invoice Management -->
 			<InvoiceManagement
 				v-model="showInvoiceManagement"
 				:pos-profile="shiftStore.profileName"
@@ -1022,6 +1047,7 @@ import ReturnInvoiceDialog from "@/components/sale/ReturnInvoiceDialog.vue";
 import WarehouseAvailabilityDialog from "@/components/sale/WarehouseAvailabilityDialog.vue";
 import POSSettings from "@/components/settings/POSSettings.vue";
 import InvoiceManagement from "@/components/invoices/InvoiceManagement.vue";
+import DaySummaryDialog from "@/components/reports/DaySummaryDialog.vue";
 import InvoiceDetailDialog from "@/components/invoices/InvoiceDetailDialog.vue";
 import { useRealtimeStock } from "@/composables/useRealtimeStock";
 import { useSessionLock } from "@/composables/useSessionLock";
@@ -1153,6 +1179,8 @@ const showStockLookup = ref(false);
 
 // Invoice Management dialog
 const showInvoiceManagement = ref(false);
+// Day Summary (DCR scoped to this till)
+const showDaySummary = ref(false);
 
 // Invoice Detail dialog
 const showInvoiceDetail = ref(false);
