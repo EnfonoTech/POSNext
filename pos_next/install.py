@@ -188,14 +188,14 @@ def reclaim_pos_settings_doctype(quiet=False):
 
 	ERPNext ships a Single `POS Settings` (module Accounts) with only
 	`invoice_fields` and `pos_search_fields`. FatehPOS ships its own
-	non-Single `POS Settings` (module FatehPOS) with per-profile config
+	non-Single `POS Settings` (module POS Next) with per-profile config
 	and a `barcode_rules` child table. Because ERPNext is in our
 	`required_apps` its doctype sync runs after ours during `bench
 	migrate`, so its JSON wins on disk unless we re-install our version
 	after both apps have finished syncing.
 
 	Runs from `after_migrate`. Idempotent: if the live doctype already
-	belongs to FatehPOS (module == 'FatehPOS' and not Single), exits
+	belongs to this app (module == 'POS Next' and not Single), exits
 	without touching anything.
 	"""
 	if not frappe.db.exists("DocType", "POS Settings"):
@@ -204,7 +204,7 @@ def reclaim_pos_settings_doctype(quiet=False):
 		return
 
 	row = frappe.db.get_value("DocType", "POS Settings", ["module", "issingle"], as_dict=True)
-	if row and row.module == "FatehPOS" and not row.issingle:
+	if row and row.module == "POS Next" and not row.issingle:
 		if not quiet:
 			log_message("POS Settings already owned by FatehPOS, nothing to reclaim", level="info")
 		return
@@ -254,7 +254,7 @@ def reclaim_pos_settings_doctype(quiet=False):
 		raise
 
 	after = frappe.db.get_value("DocType", "POS Settings", ["module", "issingle"], as_dict=True)
-	if not after or after.module != "FatehPOS" or after.issingle:
+	if not after or after.module != "POS Next" or after.issingle:
 		frappe.log_error(
 			title="POS Settings Reclaim Error",
 			message=(
