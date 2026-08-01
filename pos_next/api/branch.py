@@ -37,13 +37,18 @@ def apply_branch_defaults(doc, method=None):
 
 	Only fills values the user has not already set, so manual overrides stick.
 	"""
-	if not _branches_configured():
-		return
+	config = None
+	if _branches_configured():
+		config = get_branch_config(pos_profile=doc.get("pos_profile")) or (
+			get_branch_config(branch=doc.get("branch")) if doc.get("branch") else None
+		)
 
-	config = get_branch_config(pos_profile=doc.get("pos_profile")) or (
-		get_branch_config(branch=doc.get("branch")) if doc.get("branch") else None
-	)
 	if not config:
+		# No Branch Configuration for this till: fall back to the Branch set
+		# directly on the POS Profile (ERPNext does not copy accounting
+		# dimensions from POS Profile to the invoice by itself), so picking a
+		# Branch there is enough for simple setups.
+		_apply_pos_profile_branch(doc)
 		return
 
 	if not doc.get("branch") and doc.meta.get_field("branch"):
@@ -56,6 +61,16 @@ def apply_branch_defaults(doc, method=None):
 		series = f"{config.naming_series_prefix}-.YYYY.-"
 		if doc.naming_series != series:
 			doc.naming_series = series
+
+
+
+def _apply_pos_profile_branch(doc):
+	"""Stamp the Branch chosen on the POS Profile when no Branch Configuration exists."""
+	if doc.get("branch") or not doc.get("pos_profile") or not doc.meta.get_field("branch"):
+		return
+	branch = frappe.db.get_value("POS Profile", doc.pos_profile, "branch")
+	if branch:
+		doc.branch = branch
 
 
 def apply_branch_to_items(doc, method=None):
