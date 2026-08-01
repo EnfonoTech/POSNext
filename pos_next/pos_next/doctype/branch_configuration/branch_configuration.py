@@ -23,6 +23,22 @@ from frappe.model.document import Document
 
 BRANCH_DIMENSION_DOCTYPE = "Branch"
 PREFIX_PATTERN = re.compile(r"^[A-Z0-9]{2,6}$")
+# a full series the user typed themselves, e.g. TCS-SI-.YYYY.-
+SERIES_PATTERN = re.compile(r"^[A-Z0-9][A-Z0-9\-/.]{0,28}$")
+DATE_PLACEHOLDER = re.compile(r"\.(YYYY|YY|MM|DD)\.")
+
+
+def series_from_prefix(value):
+	"""Series for a Branch Configuration prefix.
+
+	A bare prefix (COL) becomes COL-.YYYY.-. A value that already contains a
+	date placeholder (TCS-SI-.YYYY.-) is a complete series and is used verbatim,
+	so a branch can keep a house series that does not fit PREFIX-.YYYY.-.
+	"""
+	if not value:
+		return None
+	value = value.strip().upper()
+	return value if DATE_PLACEHOLDER.search(value) else value + "-.YYYY.-"
 
 
 class BranchConfiguration(Document):
@@ -88,11 +104,26 @@ class BranchConfiguration(Document):
 				)
 
 	def validate_prefix(self):
-		if self.naming_series_prefix and not PREFIX_PATTERN.match(self.naming_series_prefix):
-			frappe.throw(
-				_("Naming Series Prefix must be 2-6 uppercase letters or digits, e.g. {0}").format(
-					frappe.bold("COL")
+		value = self.naming_series_prefix
+		if not value:
+			return
+
+		if DATE_PLACEHOLDER.search(value):
+			# treated as a complete series
+			if not SERIES_PATTERN.match(value):
+				frappe.throw(
+					_("Naming Series {0} is not valid. Use uppercase letters, digits, - / and . only.").format(
+						frappe.bold(value)
+					)
 				)
+			return
+
+		if not PREFIX_PATTERN.match(value):
+			frappe.throw(
+				_(
+					"Naming Series Prefix must be 2-6 uppercase letters or digits (e.g. {0}), "
+					"or a complete series containing a date placeholder (e.g. {1})."
+				).format(frappe.bold("COL"), frappe.bold("TCS-SI-.YYYY.-"))
 			)
 
 	def validate_pos_profile_users(self):
@@ -140,7 +171,9 @@ class BranchConfiguration(Document):
 		"""Keep the Sales Invoice naming_series options in sync with the master."""
 		if not self.naming_series_prefix:
 			return
-		series = f"{self.naming_series_prefix}-.YYYY.-"
+		series = series_from_prefix(self.naming_series_prefix)
+		if not series:
+			return
 		meta = frappe.get_meta("Sales Invoice")
 		field = meta.get_field("naming_series")
 		if not field:
