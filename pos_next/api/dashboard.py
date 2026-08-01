@@ -21,6 +21,37 @@ def _range(from_date, to_date):
 	return from_d, to_d
 
 
+def _user_permission_conditions():
+	"""Restrict aggregates to what the caller's User Permissions allow.
+
+	Every query here is raw SQL, which bypasses the permission layer completely,
+	so a branch-restricted cashier would otherwise read every branch's revenue
+	straight off /api/method/. Mirror the User Permission records rather than
+	inventing a second, divergent rule. A user with no User Permission for a
+	link doctype is unrestricted on it, which is how Frappe itself behaves.
+	"""
+	from frappe.core.doctype.user_permission.user_permission import get_user_permissions
+
+	perms = get_user_permissions() or {}
+	cond, values = [], {}
+	for doctype, fieldname in (
+		("Branch", "branch"),
+		("POS Profile", "pos_profile"),
+		("Cost Center", "cost_center"),
+		("Company", "company"),
+	):
+		allowed = [p.get("doc") for p in (perms.get(doctype) or []) if p.get("doc")]
+		if not allowed:
+			continue
+		keys = []
+		for i, value in enumerate(allowed):
+			key = f"up_{fieldname}_{i}"
+			values[key] = value
+			keys.append(f"%({key})s")
+		cond.append(f"si.{fieldname} IN ({', '.join(keys)})")
+	return cond, values
+
+
 def _conditions(from_d, to_d, company, cost_center):
 	cond = ["si.docstatus = 1", "si.is_pos = 1", "si.posting_date BETWEEN %(from_date)s AND %(to_date)s"]
 	values = {"from_date": from_d, "to_date": to_d}
@@ -30,6 +61,10 @@ def _conditions(from_d, to_d, company, cost_center):
 	if cost_center:
 		cond.append("si.cost_center = %(cost_center)s")
 		values["cost_center"] = cost_center
+
+	up_cond, up_values = _user_permission_conditions()
+	cond.extend(up_cond)
+	values.update(up_values)
 	return " AND ".join(cond), values
 
 
@@ -169,10 +204,25 @@ def get_dashboard_data(from_date=None, to_date=None, company=None, cost_center=N
 def get_filter_options():
 	"""Companies and cost centers the user can filter by."""
 	_guard()
+	from frappe.core.doctype.user_permission.user_permission import get_user_permissions
+
+	perms = get_user_permissions() or {}
+	cc_filters = {"is_group": 0}
+
+	# a user pinned to one or more POS Profiles may only filter by those
+	# profiles' cost centers — otherwise the dropdown leaks the branch list
+	allowed_profiles = [p.get("doc") for p in (perms.get("POS Profile") or []) if p.get("doc")]
+	if allowed_profiles:
+		cost_centers = frappe.get_all(
+			"POS Profile", filters={"name": ["in", allowed_profiles]}, pluck="cost_center"
+		)
+		cc_filters["name"] = ["in", [c for c in cost_centers if c] or [""]]
+
 	return {
-		"companies": frappe.get_all("Company", pluck="name"),
-		"cost_centers": frappe.get_all(
-			"Cost Center", filters={"is_group": 0}, fields=["name", "company"]
+		# get_list, not get_all: it applies User Permissions
+		"companies": frappe.get_list("Company", pluck="name"),
+		"cost_centers": frappe.get_list(
+			"Cost Center", filters=cc_filters, fields=["name", "company"]
 		),
 		"default_company": frappe.defaults.get_global_default("company"),
 	}
