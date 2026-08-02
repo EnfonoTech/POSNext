@@ -41,7 +41,7 @@
 									@error="handleFlagError"
 								/>
 								<span class="flex-1 text-start">{{
-									selectedCountryCode || "+20"
+									selectedCountryCode || __("Code")
 								}}</span>
 								<svg
 									class="w-4 h-4 text-gray-400"
@@ -350,7 +350,9 @@ const isEditMode = computed(() => !!props.customer?.name);
 
 const currentCountryCode = computed(() => {
 	const country = countriesStore.countries.find((c) => c.isd === selectedCountryCode.value);
-	return country?.code.toLowerCase() || "eg";
+	// No fallback flag — an unresolved code must not look like a real country.
+	// The empty src 404s and handleFlagError hides the image.
+	return country?.code.toLowerCase() || "";
 });
 
 const filteredCountries = computed(() => {
@@ -391,11 +393,16 @@ const handleClickOutside = (event) => {
 	}
 };
 
-const setCountryFromName = (countryName) => {
+const setCountryFromName = async (countryName) => {
 	if (!countryName) {
-		selectedCountryCode.value = "+20";
+		selectedCountryCode.value = "";
 		return;
 	}
+
+	// The ISD map only fills once the countries resource resolves. Awaiting it
+	// here is what stops the dialog settling on a wrong dial code when it opens
+	// before the (lazily started) load finishes.
+	await countriesStore.loadCountries();
 
 	const isd = countriesStore.countryNameToISDMap[countryName];
 	if (isd) {
@@ -403,7 +410,7 @@ const setCountryFromName = (countryName) => {
 		log.info(`Set country code to ${isd} for ${countryName}`);
 	} else {
 		log.warn(`Country "${countryName}" not found`);
-		selectedCountryCode.value = "+20";
+		selectedCountryCode.value = "";
 	}
 };
 
@@ -586,10 +593,13 @@ const posProfileResource = createResource({
 		fieldname: ["country"],
 	}),
 	auto: false,
-	onSuccess: (data) => setCountryFromName(data?.country || "Egypt"),
+	// POS Profile.country is fetched from the company, so the dial code follows
+	// wherever the install is. No hardcoded country: a wrong default is worse
+	// than none, because the cashier has to notice it to correct it.
+	onSuccess: (data) => setCountryFromName(data?.country),
 	onError: (err) => {
 		log.error("Error loading POS Profile", err);
-		selectedCountryCode.value = "+20";
+		selectedCountryCode.value = "";
 	},
 });
 
@@ -598,8 +608,9 @@ const posProfileResource = createResource({
 // =============================================================================
 
 const loadDialogData = async () => {
-	// Lazy load countries (non-blocking)
-	countriesStore.loadCountries();
+	// Kick the countries load off early; it is awaited with the other form
+	// options below so the ISD map is ready before the country is resolved.
+	const countriesLoad = countriesStore.loadCountries();
 
 	await sellingSettingsResource.reload();
 
@@ -610,6 +621,7 @@ const loadDialogData = async () => {
 
 	// Load form options
 	await Promise.all([
+		countriesLoad,
 		territoriesResource.reload(),
 		customerGroupsResource.reload(),
 		governoratesResource.reload(),
@@ -626,7 +638,7 @@ const loadDialogData = async () => {
 	if (props.posProfile) {
 		await posProfileResource.reload();
 	} else {
-		selectedCountryCode.value = "+20";
+		selectedCountryCode.value = "";
 	}
 };
 
