@@ -198,9 +198,7 @@ class POSClosingShift(Document):
 			if currency:
 				row["currencies"][currency] += flt(amount)
 
-		cash_mode_of_payment = (
-			frappe.db.get_value("POS Profile", self.pos_profile, "posa_cash_mode_of_payment") or "Cash"
-		)
+		cash_mode_of_payment = _get_cash_mode_of_payment(self.pos_profile)
 
 		for row in self.get("pos_transactions", []):
 			invoice = row.get("sales_invoice") or row.get("pos_invoice")
@@ -396,9 +394,33 @@ def get_payments_entries(pos_opening_shift):
 
 
 def _get_cash_mode_of_payment(pos_profile):
-	"""Get the cash mode of payment for a POS profile."""
-	cash_mode = frappe.get_value("POS Profile", pos_profile, "posa_cash_mode_of_payment")
-	return cash_mode or "Cash"
+	"""Cash mode of payment for a POS profile.
+
+	Falls back to the profile's own Cash-type mode before the generic "Cash".
+	A branch till normally names its drawer (`Cash Colobia`, `Cash Rastanura`)
+	and never carries a plain `Cash` mode, so the old literal fallback pushed
+	the change deduction onto a mode the profile does not have: the real cash
+	line stayed overstated by the change given and the reconciliation table
+	grew an orphan negative row.
+	"""
+	explicit = frappe.get_value("POS Profile", pos_profile, "posa_cash_mode_of_payment")
+	if explicit:
+		return explicit
+
+	mop = frappe.qb.DocType("Mode of Payment")
+	ppm = frappe.qb.DocType("POS Payment Method")
+	rows = (
+		frappe.qb.from_(ppm)
+		.inner_join(mop)
+		.on(mop.name == ppm.mode_of_payment)
+		.select(ppm.mode_of_payment)
+		.where(
+			(ppm.parent == pos_profile) & (ppm.parenttype == "POS Profile") & (mop.type == "Cash")
+		)
+		.orderby(ppm.idx)
+		.limit(1)
+	).run()
+	return rows[0][0] if rows else "Cash"
 
 
 def _aggregate_payment(payments, mode_of_payment, amount, opening_amount=0):
