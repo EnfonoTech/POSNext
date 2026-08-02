@@ -128,10 +128,51 @@ def get_cash_balance(as_of_date, filters):
 	return flt(rows[0][0]) if rows else 0.0
 
 
-def get_sales_by_mode(filters):
-	"""Settled amount per mode of payment, from the invoice payment rows."""
+def get_change_by_mode(filters):
+	"""Change handed back to customers, per cash mode of payment.
+
+	Change is an invoice-level field and always leaves the cash tender, so it
+	is attributed to the invoice's first Cash-type payment row — the same
+	drawer POS Closing Shift nets it against. Reading it per invoice (rather
+	than grouping the whole range by mode) keeps an invoice with two cash rows
+	from having its change subtracted twice.
+	"""
 	where, values = _conditions(filters)
-	return frappe.db.sql(
+	rows = frappe.db.sql(
+		f"""
+		SELECT c.mode AS mode, COALESCE(SUM(c.change_amount), 0) AS change_amount
+		FROM (
+			SELECT (
+				SELECT sip.mode_of_payment
+				FROM `tabSales Invoice Payment` sip
+				INNER JOIN `tabMode of Payment` mop ON mop.name = sip.mode_of_payment
+				WHERE sip.parent = si.name AND mop.type = 'Cash'
+				ORDER BY sip.idx
+				LIMIT 1
+			) AS mode,
+			si.change_amount AS change_amount
+			FROM `tabSales Invoice` si
+			WHERE {where} AND si.is_return = 0 AND IFNULL(si.change_amount, 0) <> 0
+		) c
+		WHERE c.mode IS NOT NULL
+		GROUP BY c.mode
+		""",
+		values,
+		as_dict=True,
+	)
+	return {r.mode: flt(r.change_amount) for r in rows}
+
+
+def get_sales_by_mode(filters):
+	"""Amount kept per mode of payment, from the invoice payment rows.
+
+	Net of change. `Sales Invoice Payment.amount` is what the customer
+	*tendered*, so a cash row reads 900 when 108 went back as change and only
+	792 stayed in the drawer. Without the deduction the modes do not sum to
+	Sales Collected and every cash close shows a false variance.
+	"""
+	where, values = _conditions(filters)
+	rows = frappe.db.sql(
 		f"""
 		SELECT sip.mode_of_payment AS mode,
 			COALESCE(SUM(sip.amount), 0) AS amount,
@@ -145,6 +186,13 @@ def get_sales_by_mode(filters):
 		values,
 		as_dict=True,
 	)
+
+	change = get_change_by_mode(filters)
+	for r in rows:
+		if r.mode in change:
+			r.amount = flt(r.amount) - change[r.mode]
+	rows.sort(key=lambda r: flt(r.amount), reverse=True)
+	return rows
 
 
 def get_totals(filters, is_return=0):
