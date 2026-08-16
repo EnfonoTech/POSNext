@@ -16,6 +16,10 @@ inert on single-branch installs.
 
 import frappe
 
+from pos_next.pos_next.doctype.branch_configuration.branch_configuration import (
+	series_from_prefix,
+)
+
 
 def get_branch_config(pos_profile: str | None = None, branch: str | None = None):
 	"""Return the Branch Configuration for a POS Profile or Branch (cached)."""
@@ -58,8 +62,12 @@ def apply_branch_defaults(doc, method=None):
 	if config.warehouse and doc.meta.get_field("set_warehouse") and not doc.get("set_warehouse"):
 		doc.set_warehouse = config.warehouse
 	if config.naming_series_prefix and doc.meta.get_field("naming_series"):
-		series = f"{config.naming_series_prefix}-.YYYY.-"
-		if doc.naming_series != series:
+		# Same derivation the master uses to register the option, so the series
+		# stamped here always exists in the naming_series option list. Building
+		# it inline would double the suffix on a branch whose prefix is already
+		# a complete series (TCS-SI-.YYYY.- -> TCS-SI-.YYYY.--.YYYY.-).
+		series = series_from_prefix(config.naming_series_prefix)
+		if series and doc.naming_series != series:
 			doc.naming_series = series
 
 

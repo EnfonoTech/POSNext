@@ -90,3 +90,50 @@ class TestBranchStamping(FrappeTestCase):
 			if r.cost_center and r.cost_center != cfg.cost_center
 		]
 		self.assertFalse(gl_wrong, f"GL rows not on the branch cost centre: {gl_wrong}")
+
+
+class TestBranchNamingSeries(FrappeTestCase):
+	"""The series stamped on the invoice must be the one the master registered.
+
+	`BranchConfiguration.ensure_naming_series_option` derives the Sales Invoice
+	naming_series option with `series_from_prefix`, which passes a prefix that is
+	already a complete series (TCS-SI-.YYYY.-) through untouched. Building the
+	series inline here instead used to append a second suffix, producing
+	TCS-SI-.YYYY.--.YYYY.- — a series that is not in the option list at all.
+	"""
+
+	def _stamp(self, prefix):
+		from unittest.mock import patch
+
+		from pos_next.api import branch as branch_api
+
+		config = frappe._dict(
+			{
+				"branch": "Test Branch",
+				"cost_center": None,
+				"warehouse": None,
+				"naming_series_prefix": prefix,
+			}
+		)
+		doc = frappe._dict({"naming_series": None, "branch": None, "pos_profile": "Test POS"})
+		doc.meta = frappe._dict({"get_field": lambda fieldname: object()})
+
+		with patch.object(branch_api, "_branches_configured", return_value=True), patch.object(
+			branch_api, "get_branch_config", return_value=config
+		):
+			branch_api.apply_branch_defaults(doc)
+		return doc.naming_series
+
+	def test_bare_prefix_gets_year_suffix(self):
+		self.assertEqual(self._stamp("COL"), "COL-.YYYY.-")
+
+	def test_complete_series_is_not_double_suffixed(self):
+		self.assertEqual(self._stamp("TCS-SI-.YYYY.-"), "TCS-SI-.YYYY.-")
+
+	def test_stamped_series_matches_the_registered_option(self):
+		from pos_next.pos_next.doctype.branch_configuration.branch_configuration import (
+			series_from_prefix,
+		)
+
+		for prefix in ("COL", "RAS", "JAF", "TAR", "MAZ", "TCS-SI-.YYYY.-"):
+			self.assertEqual(self._stamp(prefix), series_from_prefix(prefix), prefix)
