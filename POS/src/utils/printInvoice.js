@@ -345,24 +345,46 @@ function buildReceiptDocumentHTML(invoiceData, { includeControls = false } = {})
 		</html>`;
 }
 
+/** POS Profile -> {print_format, letter_head}, for this page session only. */
+const _profilePrintCache = new Map();
+
+/** Drop the cached POS Profile print settings (call after editing a profile). */
+export function clearPrintSettingsCache() {
+	_profilePrintCache.clear();
+}
+
 /**
  * Resolve print format & letterhead from a POS Profile.
  * Returns defaults when the profile lookup fails so callers always get a value.
+ *
+ * EVERY print path must go through this. Falling back to DEFAULT_PRINT_FORMAT
+ * without asking the profile is what made silent print swap a branch's real
+ * receipt — logo, Arabic and the ZATCA QR — for the plain built-in one.
+ *
+ * Cached per page session: a receipt prints on every sale and the profile's
+ * print format effectively never changes mid-shift. `clearPrintSettingsCache()`
+ * exists for the case where it does.
  */
-async function resolvePrintSettings(posProfile, printFormat, letterhead) {
+export async function resolvePrintSettings(posProfile, printFormat, letterhead) {
 	if (printFormat) return { printFormat, letterhead };
 
 	if (posProfile) {
+		if (_profilePrintCache.has(posProfile)) {
+			const hit = _profilePrintCache.get(posProfile);
+			return { printFormat: hit.printFormat, letterhead: letterhead || hit.letterhead };
+		}
 		try {
 			const doc = await call("frappe.client.get", {
 				doctype: "POS Profile",
 				name: posProfile,
 			});
 			if (doc) {
-				return {
+				const resolved = {
 					printFormat: doc.print_format || DEFAULT_PRINT_FORMAT,
-					letterhead: letterhead || doc.letter_head || null,
+					letterhead: doc.letter_head || null,
 				};
+				_profilePrintCache.set(posProfile, resolved);
+				return { printFormat: resolved.printFormat, letterhead: letterhead || resolved.letterhead };
 			}
 		} catch (err) {
 			log.warn("Could not fetch POS Profile print settings:", err);
@@ -441,7 +463,11 @@ export async function printInvoice(invoiceData, printFormat = null, letterhead =
 		}
 
 		const doctype = invoiceData.doctype || "Sales Invoice";
-		const format = printFormat || DEFAULT_PRINT_FORMAT;
+		// Resolve from the invoice's own POS Profile rather than assuming the
+		// built-in default — callers routinely pass no format (POSSale.vue).
+		const settings = await resolvePrintSettings(invoiceData.pos_profile, printFormat, letterhead);
+		const format = settings.printFormat;
+		letterhead = settings.letterhead;
 
 		const result = await call("frappe.www.printview.get_html_and_style", {
 			doc: doctype,
@@ -487,7 +513,9 @@ async function printInvoiceViaWindow(invoiceData, printFormat = null, letterhead
 		}
 
 		const doctype = invoiceData.doctype || "Sales Invoice";
-		const format = printFormat || DEFAULT_PRINT_FORMAT;
+		const settings = await resolvePrintSettings(invoiceData.pos_profile, printFormat, letterhead);
+		const format = settings.printFormat;
+		letterhead = settings.letterhead;
 
 		const params = new URLSearchParams({
 			doctype,
@@ -581,7 +609,7 @@ export async function silentPrintDoc(doctype, name, printFormat) {
  * formats that rely on Bootstrap layout classes may render differently.
  * Paper size and margins are controlled by the QZ Tray config in qzTray.js.
  */
-export async function silentPrintInvoice(invoiceName, printFormat = null) {
+export async function silentPrintInvoice(invoiceName, printFormat = null, posProfile = null) {
 	if (isLocalOnlyInvoiceName(invoiceName)) {
 		const doc = await hydrateLocalOnlyInvoice({ name: invoiceName });
 		if (doc.items?.length > 0) return silentPrintInvoiceFromDoc(doc);
@@ -591,7 +619,7 @@ export async function silentPrintInvoice(invoiceName, printFormat = null) {
 			)
 		);
 	}
-	const format = printFormat || DEFAULT_PRINT_FORMAT;
+	const { printFormat: format } = await resolvePrintSettings(posProfile, printFormat, null);
 
 	await silentPrintDoc("Sales Invoice", invoiceName, format);
 	log.info(`Silent print sent for ${invoiceName}`);
@@ -635,15 +663,25 @@ export async function printWithSilentFallback(invoiceData, printFormat = null) {
 		}
 	}
 
+	// Resolve once here so the silent attempt and the browser fallback render the
+	// SAME format. Previously the silent path took DEFAULT_PRINT_FORMAT while the
+	// fallback resolved the profile's, so which receipt a customer got depended on
+	// whether QZ Tray happened to be connected.
+	const { printFormat: format } = await resolvePrintSettings(
+		invoiceData.pos_profile,
+		printFormat,
+		null
+	);
+
 	try {
-		await silentPrintInvoice(invoiceName, printFormat);
+		await silentPrintInvoice(invoiceName, format, invoiceData.pos_profile);
 		return { method: "silent", success: true };
 	} catch (err) {
 		log.warn("Silent print failed, falling back to browser:", err?.message || err);
 	}
 
 	try {
-		await printInvoiceByName(invoiceName, printFormat);
+		await printInvoiceByName(invoiceName, format);
 		return { method: "browser", success: true };
 	} catch (err) {
 		log.error("Browser print fallback also failed:", err);
