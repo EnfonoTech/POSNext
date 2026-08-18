@@ -345,6 +345,27 @@ function buildReceiptDocumentHTML(invoiceData, { includeControls = false } = {})
 		</html>`;
 }
 
+/**
+ * The POS Profile an invoice belongs to.
+ *
+ * List payloads are not full documents — `pos_next.api.invoices.get_invoices`
+ * returns `items` but historically not `pos_profile`, so anything printed from
+ * Invoice Management arrived with no profile and silently took the built-in
+ * format. Fetch the document rather than guessing.
+ */
+async function profileForInvoice(invoiceData) {
+	if (invoiceData?.pos_profile) return invoiceData.pos_profile;
+	const name = invoiceData?.name;
+	if (!name || isLocalOnlyInvoiceName(name)) return null;
+	try {
+		const doc = await call("pos_next.api.invoices.get_invoice", { invoice_name: name });
+		return doc?.pos_profile || null;
+	} catch (err) {
+		log.warn("Could not resolve POS Profile for", name, err);
+		return null;
+	}
+}
+
 /** POS Profile -> {print_format, letter_head}, for this page session only. */
 const _profilePrintCache = new Map();
 
@@ -465,7 +486,11 @@ export async function printInvoice(invoiceData, printFormat = null, letterhead =
 		const doctype = invoiceData.doctype || "Sales Invoice";
 		// Resolve from the invoice's own POS Profile rather than assuming the
 		// built-in default — callers routinely pass no format (POSSale.vue).
-		const settings = await resolvePrintSettings(invoiceData.pos_profile, printFormat, letterhead);
+		const settings = await resolvePrintSettings(
+			await profileForInvoice(invoiceData),
+			printFormat,
+			letterhead
+		);
 		const format = settings.printFormat;
 		letterhead = settings.letterhead;
 
@@ -513,7 +538,11 @@ async function printInvoiceViaWindow(invoiceData, printFormat = null, letterhead
 		}
 
 		const doctype = invoiceData.doctype || "Sales Invoice";
-		const settings = await resolvePrintSettings(invoiceData.pos_profile, printFormat, letterhead);
+		const settings = await resolvePrintSettings(
+			await profileForInvoice(invoiceData),
+			printFormat,
+			letterhead
+		);
 		const format = settings.printFormat;
 		letterhead = settings.letterhead;
 
@@ -667,14 +696,11 @@ export async function printWithSilentFallback(invoiceData, printFormat = null) {
 	// SAME format. Previously the silent path took DEFAULT_PRINT_FORMAT while the
 	// fallback resolved the profile's, so which receipt a customer got depended on
 	// whether QZ Tray happened to be connected.
-	const { printFormat: format } = await resolvePrintSettings(
-		invoiceData.pos_profile,
-		printFormat,
-		null
-	);
+	const posProfile = await profileForInvoice(invoiceData);
+	const { printFormat: format } = await resolvePrintSettings(posProfile, printFormat, null);
 
 	try {
-		await silentPrintInvoice(invoiceName, format, invoiceData.pos_profile);
+		await silentPrintInvoice(invoiceName, format, posProfile);
 		return { method: "silent", success: true };
 	} catch (err) {
 		log.warn("Silent print failed, falling back to browser:", err?.message || err);

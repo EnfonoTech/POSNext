@@ -140,3 +140,34 @@ describe("resolvePrintSettings", () => {
 		expect(out.printFormat).toBe(DEFAULT_FORMAT);
 	});
 });
+
+describe("invoices printed from a list payload (no pos_profile field)", () => {
+	// pos_next.api.invoices.get_invoices returns `items` but historically not
+	// `pos_profile`. That row shape is what Invoice Management's Print button
+	// emits, and it defeated the first version of this fix.
+	const listRow = { name: INVOICE, items: [{}], grand_total: 17, status: "Paid" };
+
+	it("printInvoice fetches the document instead of defaulting", async () => {
+		await mod.printInvoice({ ...listRow });
+		expect(requestedFormat()).toBe(BRANCH_FORMAT);
+	});
+
+	it("printWithSilentFallback fetches it too", async () => {
+		await mod.printWithSilentFallback({ ...listRow });
+		expect(requestedFormat()).toBe(BRANCH_FORMAT);
+	});
+
+	it("still returns the default when the invoice genuinely has no profile", async () => {
+		call.mockImplementation(async (method, args) => {
+			if (method === "pos_next.api.invoices.get_invoice") {
+				return { name: INVOICE, doctype: "Sales Invoice", pos_profile: null, items: [{}] };
+			}
+			if (method === "frappe.www.printview.get_html_and_style") {
+				return { html: `<div>${args.print_format}</div>`, style: "" };
+			}
+			return null;
+		});
+		await mod.printInvoice({ ...listRow });
+		expect(requestedFormat()).toBe(DEFAULT_FORMAT);
+	});
+});
