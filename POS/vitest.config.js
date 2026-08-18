@@ -6,7 +6,9 @@ export default defineConfig({
 		alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) },
 	},
 	test: {
-		environment: "node",
+		// jsdom, not node: printInvoice's happy path prints through a real
+		// iframe (printViaIframe), so it needs a document to append one to.
+		environment: "jsdom",
 		include: ["src/**/*.test.js"],
 	},
 });
