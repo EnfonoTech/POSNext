@@ -19,10 +19,46 @@ import frappe
 logger = logging.getLogger(__name__)
 
 
+def ensure_custom_fields(quiet=False):
+	"""Create the POS Profile switch that makes the price list drive the menu.
+
+	Default 0 — OFF. POSNext runs for clients whose catalogues predate any price list;
+	switching their tills to a shorter menu unasked would be an outage of our making.
+	Idempotent, and wired to after_migrate so it survives a field being deleted by hand.
+	"""
+	from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
+
+	create_custom_fields(
+		{
+			"POS Profile": [
+				{
+					"fieldname": "custom_only_priced_items",
+					"label": "Show Only Items With a Price",
+					"fieldtype": "Check",
+					"default": "0",
+					"insert_after": "selling_price_list",
+					"description": (
+						"Hide items that have no usable price in the selected Price List. "
+						"A manager puts an item on this till's menu by giving it a price, "
+						"and removes it by removing the price. Items priced at zero are "
+						"hidden too — a zero-priced button rings up free."
+					),
+				}
+			]
+		},
+		ignore_validate=True,
+		update=True,
+	)
+	if not quiet:
+		log_message("FatehPOS: POS Profile custom fields ensured", level="info")
+
+
 def after_install():
 	"""Hook that runs after app installation"""
 	try:
 		log_message("FatehPOS: Running post-install setup", level="info")
+
+		ensure_custom_fields()
 
 		# Setup default print format for POS Profiles
 		setup_default_print_format()
@@ -47,6 +83,8 @@ def after_migrate():
 		# doctype sync runs after pos_next's and would overwrite anything we did
 		# during pre/post-model-sync.
 		reclaim_pos_settings_doctype(quiet=True)
+
+		ensure_custom_fields(quiet=True)
 
 		# Setup default print format
 		setup_default_print_format(quiet=True)

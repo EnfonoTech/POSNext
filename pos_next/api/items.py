@@ -738,6 +738,55 @@ def _get_pos_profile_allowed_item_groups(pos_profile_doc):
 	return result
 
 
+# A menu driven by the price list: an item appears only once somebody has priced it.
+# Written once and reused by the item query and the group tabs, so a group can never
+# advertise itself with nothing sellable behind it.
+#
+# "Priced" deliberately excludes:
+#   * rate 0 — an item at zero rings up free, which is worse than being absent;
+#   * expired / not-yet-valid rows, via valid_from / valid_upto;
+#   * customer- or supplier-specific rows — a price negotiated for one party must not
+#     put an item on everybody's menu.
+# A variant template counts as priced when ANY of its variants is, mirroring the
+# `min_price` fallback get_items already applies when it renders the template.
+_PRICED_ITEM_EXISTS = """
+	EXISTS (
+		SELECT 1 FROM `tabItem Price` ip
+		WHERE ip.price_list = %s
+		  AND ip.selling = 1
+		  AND IFNULL(ip.price_list_rate, 0) > 0
+		  AND IFNULL(ip.customer, '') = ''
+		  AND IFNULL(ip.supplier, '') = ''
+		  AND (ip.valid_from IS NULL OR ip.valid_from <= %s)
+		  AND (ip.valid_upto IS NULL OR ip.valid_upto >= %s)
+		  AND (
+				ip.item_code = i.name
+				OR ip.item_code IN (
+					SELECT v.name FROM `tabItem` v
+					WHERE v.variant_of = i.name AND v.disabled = 0
+				)
+		  )
+	)
+"""
+
+
+def _only_priced_items(pos_profile_doc) -> bool:
+	"""Whether this till hides items that have no usable price.
+
+	Off by default. POSNext runs for clients whose menus predate any price list, and
+	switching their tills to a shorter menu without being asked would be its own outage.
+	"""
+	return bool(pos_profile_doc.get("custom_only_priced_items"))
+
+
+def _priced_item_condition(pos_profile_doc):
+	"""(sql, params) enforcing the price-list menu, or (None, []) when the flag is off."""
+	if not _only_priced_items(pos_profile_doc) or not pos_profile_doc.get("selling_price_list"):
+		return None, []
+	today = nowdate()
+	return _PRICED_ITEM_EXISTS, [pos_profile_doc.selling_price_list, today, today]
+
+
 def _build_item_base_conditions(
 	pos_profile_doc,
 	item_group=None,
@@ -787,6 +836,11 @@ def _build_item_base_conditions(
 	elif item_group:
 		# Requested group is outside the profile's authorised scope → match nothing.
 		conditions.append("i.item_group IN (NULL)")
+
+	priced_sql, priced_params = _priced_item_condition(pos_profile_doc)
+	if priced_sql:
+		conditions.append(priced_sql)
+		where_params.extend(priced_params)
 
 	allowed_brands = _get_allowed_profile_brands(pos_profile_doc.name)
 	if allowed_brands:
@@ -1805,6 +1859,41 @@ def get_item_details(item_code, pos_profile, customer=None, qty=1, uom=None):
 		frappe.throw(_("Error fetching item details: {0}").format(str(e)))
 
 
+def on_item_price_change(doc, method=None):
+	"""Drop the cached group tabs whenever a price appears, moves or is removed.
+
+	The item grid itself is not cached, so a new price shows up on the next search
+	immediately. The GROUP tabs are cached for 300s, which is long enough for a manager
+	to price an item, see no new tab, and conclude the feature is broken. Bounded work:
+	one delete per POS Profile, and there are a handful per site.
+	"""
+	for profile in frappe.get_all("POS Profile", pluck="name"):
+		frappe.cache().delete_value(f"pos_item_groups:{profile}")
+
+
+def _groups_with_priced_items(pos_profile_doc, group_names):
+	"""Narrow `group_names` to those holding at least one sellable item.
+
+	Without this the till renders a tab the cashier can open to find nothing — the same
+	complaint as a zero-priced button, one level up.
+	"""
+	priced_sql, priced_params = _priced_item_condition(pos_profile_doc)
+	if not priced_sql or not group_names:
+		return group_names
+
+	placeholders = ", ".join(["%s"] * len(group_names))
+	rows = frappe.db.sql(
+		f"""SELECT DISTINCT i.item_group FROM `tabItem` i
+		    WHERE i.disabled = 0 AND i.is_sales_item = 1
+		      AND i.item_group IN ({placeholders})
+		      AND {priced_sql}""",
+		list(group_names) + priced_params,
+		pluck=True,
+	)
+	keep = set(rows)
+	return [g for g in group_names if g in keep]
+
+
 @frappe.whitelist()
 def get_item_groups(pos_profile):
 	"""Get item groups configured in POS Profile with hierarchy info for filtering."""
@@ -1826,17 +1915,23 @@ def get_item_groups(pos_profile):
 			.run(pluck="item_group")
 		)
 
+		profile_doc = frappe.get_cached_doc("POS Profile", pos_profile)
+
 		if not configured_groups:
-			result = (
+			names = (
 				frappe.qb.from_(ItemGroup)
-				.select(ItemGroup.name.as_("item_group"))
+				.select(ItemGroup.name)
 				.where(ItemGroup.is_group == 0)
 				.orderby(ItemGroup.name)
 				.limit(50)
-				.run(as_dict=True)
+				.run(pluck=True)
 			)
+			names = _groups_with_priced_items(profile_doc, names)
+			result = [{"item_group": n} for n in names]
 			frappe.cache().set_value(cache_key, result, expires_in_sec=300)
 			return result
+
+		configured_groups = _groups_with_priced_items(profile_doc, configured_groups)
 
 		result = []
 		for group_name in configured_groups:

@@ -142,6 +142,13 @@ override_doctype_class = {"Sales Invoice": "pos_next.overrides.sales_invoice.Cus
 # Hook on document methods and events
 
 doc_events = {
+	# A price is what puts an item on the menu when a profile opts into
+	# `custom_only_priced_items`, so the cached group tabs must not outlive it.
+	"Item Price": {
+		"after_insert": "pos_next.api.items.on_item_price_change",
+		"on_update": "pos_next.api.items.on_item_price_change",
+		"on_trash": "pos_next.api.items.on_item_price_change",
+	},
 	"Customer": {
 		"after_insert": [
 			"pos_next.api.customers.auto_assign_loyalty_program",
