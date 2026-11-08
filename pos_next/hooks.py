@@ -33,6 +33,28 @@ _asset_version = get_build_version()
 # app_include_css = f"/assets/pos_next/css/pos_next.css?v={_asset_version}"
 # app_include_js = f"/assets/pos_next/js/pos_next.js?v={_asset_version}"
 
+# Enfono / Numo: the look of the POS desk forms (POS Profile, POS Settings, shifts, Branch
+# Configuration). Plain files, not bundles, so the version is a hash of their content: a
+# deploy that only copies files still busts the browser cache.
+def _numo_forms_version():
+	import hashlib
+	import os
+
+	h = hashlib.md5()
+	base = os.path.join(os.path.dirname(__file__), "public")
+	for rel in ("css/numo_pos_forms.css", "js/numo_pos_forms.js"):
+		try:
+			with open(os.path.join(base, rel), "rb") as f:
+				h.update(f.read())
+		except OSError:
+			pass
+	return h.hexdigest()[:10]
+
+
+_numo_v = _numo_forms_version()
+app_include_css = [f"/assets/pos_next/css/numo_pos_forms.css?v={_numo_v}"]
+app_include_js = [f"/assets/pos_next/js/numo_pos_forms.js?v={_numo_v}"]
+
 # include js, css files in header of web template
 # web_include_css = "/assets/pos_next/css/pos_next.css"
 # web_include_js = "/assets/pos_next/js/pos_next.js"

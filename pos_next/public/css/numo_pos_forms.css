@@ -1,0 +1,435 @@
+/*
+ * Numo look for the POS desk forms (POS Profile, POS Settings, POS Opening / Closing Shift,
+ * Branch Configuration). Loaded by app_include_css, so only on sites with pos_next installed.
+ * Everything is scoped to .numo-pos-form, which numo_pos_forms.js puts on the form wrapper of
+ * those doctypes only. Colours follow the desk theme variables, so light and dark both work.
+ */
+
+.numo-pos-form {
+	--numo-teal: #05685e;
+	--numo-teal-deep: #00403c;
+	--numo-teal-soft: rgba(5, 104, 94, 0.08);
+	--numo-teal-line: rgba(5, 104, 94, 0.22);
+	--numo-green: #13a35a;
+	--numo-amber: #c47f00;
+	--numo-amber-soft: rgba(254, 171, 8, 0.12);
+	--numo-radius: 14px;
+}
+
+[data-theme="dark"] .numo-pos-form {
+	--numo-teal: #3fb9a6;
+	--numo-teal-deep: #9ee0d5;
+	--numo-teal-soft: rgba(63, 185, 166, 0.1);
+	--numo-teal-line: rgba(63, 185, 166, 0.28);
+	--numo-green: #34c77b;
+	--numo-amber: #f0b43c;
+	--numo-amber-soft: rgba(240, 180, 60, 0.12);
+}
+
+/* ---------- hero banner ---------- */
+.numo-pos-form .numo-hero {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 16px 24px;
+	margin: 0 0 16px;
+	padding: 18px 20px;
+	border-radius: var(--numo-radius);
+	border: 1px solid var(--numo-teal-line);
+	background: linear-gradient(135deg, var(--numo-teal-soft), transparent 70%), var(--card-bg);
+}
+
+.numo-pos-form .numo-hero-mark {
+	width: 48px;
+	height: 48px;
+	flex: none;
+	border-radius: 12px;
+	background: #fff;
+	border: 1px solid var(--border-color);
+	display: grid;
+	place-items: center;
+}
+
+.numo-pos-form .numo-hero-mark img {
+	width: 38px;
+	height: 38px;
+	object-fit: contain;
+}
+
+.numo-pos-form .numo-hero-title {
+	flex: 1 1 220px;
+	min-width: 0;
+}
+
+.numo-pos-form .numo-hero-title h3 {
+	margin: 0;
+	font-size: 18px;
+	font-weight: 700;
+	color: var(--heading-color, var(--text-color));
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.numo-pos-form .numo-hero-title p {
+	margin: 2px 0 0;
+	font-size: 12.5px;
+	color: var(--text-muted);
+}
+
+.numo-pos-form .numo-pill {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 3px 10px;
+	border-radius: 999px;
+	font-size: 12px;
+	font-weight: 600;
+	white-space: nowrap;
+}
+
+.numo-pos-form .numo-pill::before {
+	content: "";
+	width: 7px;
+	height: 7px;
+	border-radius: 50%;
+	background: currentColor;
+}
+
+.numo-pos-form .numo-pill.is-on {
+	color: var(--numo-green);
+	background: rgba(19, 163, 90, 0.12);
+}
+
+.numo-pos-form .numo-pill.is-off {
+	color: var(--text-muted);
+	background: var(--control-bg, rgba(0, 0, 0, 0.05));
+}
+
+.numo-pos-form .numo-pill.is-warn {
+	color: var(--numo-amber);
+	background: var(--numo-amber-soft);
+}
+
+.numo-pos-form .numo-hero-actions {
+	display: flex;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+
+.numo-pos-form .numo-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	height: 34px;
+	padding: 0 14px;
+	border-radius: 9px;
+	font-size: 13px;
+	font-weight: 600;
+	border: 1px solid var(--numo-teal);
+	background: var(--numo-teal);
+	color: #fff;
+	cursor: pointer;
+	text-decoration: none;
+}
+
+[data-theme="dark"] .numo-pos-form .numo-btn {
+	color: #04201e;
+}
+
+.numo-pos-form .numo-btn svg {
+	width: 15px;
+	height: 15px;
+	flex: none;
+}
+
+.numo-pos-form .numo-btn:hover {
+	filter: brightness(0.92);
+	text-decoration: none;
+	color: #fff;
+}
+
+.numo-pos-form .numo-btn.is-ghost {
+	background: transparent;
+	color: var(--numo-teal);
+}
+
+.numo-pos-form .numo-facts {
+	flex: 1 1 100%;
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+	gap: 10px;
+}
+
+.numo-pos-form .numo-fact {
+	padding: 10px 12px;
+	border-radius: 10px;
+	background: var(--card-bg);
+	border: 1px solid var(--border-color);
+	min-width: 0;
+}
+
+.numo-pos-form .numo-fact-label {
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	color: var(--text-muted);
+}
+
+.numo-pos-form .numo-fact-value {
+	margin-top: 3px;
+	font-size: 13.5px;
+	font-weight: 600;
+	color: var(--text-color);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.numo-pos-form .numo-fact-value.is-empty {
+	color: var(--numo-amber);
+	font-weight: 500;
+}
+
+/* ---------- setup checklist ---------- */
+.numo-pos-form .numo-checklist {
+	flex: 1 1 100%;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+	padding-top: 12px;
+	border-top: 1px dashed var(--border-color);
+}
+
+.numo-pos-form .numo-checklist-title {
+	font-size: 12.5px;
+	font-weight: 700;
+	color: var(--text-color);
+	margin-inline-end: 4px;
+}
+
+.numo-pos-form .numo-check {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 4px 10px;
+	border-radius: 8px;
+	font-size: 12.5px;
+	border: 1px solid var(--border-color);
+	background: var(--card-bg);
+	color: var(--text-color);
+	cursor: pointer;
+}
+
+.numo-pos-form .numo-check svg {
+	width: 14px;
+	height: 14px;
+	flex: none;
+}
+
+.numo-pos-form .numo-check.is-done {
+	color: var(--numo-green);
+	border-color: rgba(19, 163, 90, 0.3);
+	cursor: default;
+}
+
+.numo-pos-form .numo-check.is-todo {
+	color: var(--numo-amber);
+	border-color: rgba(196, 127, 0, 0.35);
+	background: var(--numo-amber-soft);
+}
+
+/* ---------- section quick nav ---------- */
+.numo-pos-form .numo-secnav {
+	position: sticky;
+	top: var(--navbar-height, 48px);
+	z-index: 5;
+	display: flex;
+	gap: 6px;
+	overflow-x: auto;
+	scrollbar-width: none;
+	margin: 0 0 14px;
+	padding: 8px 0;
+	background: var(--bg-color);
+}
+
+.numo-pos-form .numo-secnav::-webkit-scrollbar {
+	display: none;
+}
+
+.numo-pos-form .numo-secnav button {
+	flex: none;
+	height: 30px;
+	padding: 0 12px;
+	border-radius: 999px;
+	border: 1px solid var(--border-color);
+	background: var(--card-bg);
+	color: var(--text-muted);
+	font-size: 12.5px;
+	font-weight: 600;
+	cursor: pointer;
+}
+
+.numo-pos-form .numo-secnav button:hover,
+.numo-pos-form .numo-secnav button.is-active {
+	color: var(--numo-teal);
+	border-color: var(--numo-teal-line);
+	background: var(--numo-teal-soft);
+}
+
+/* ---------- section cards ---------- */
+.numo-pos-form .form-layout .form-page > .form-section,
+.numo-pos-form .form-layout .tab-pane > .form-section {
+	border: 1px solid var(--border-color);
+	border-radius: var(--numo-radius);
+	background: var(--card-bg);
+	margin-bottom: 14px;
+	box-shadow: none;
+	overflow: visible;
+}
+
+.numo-pos-form .form-layout .form-page > .form-section,
+.numo-pos-form .form-layout .tab-pane > .form-section {
+	/* keep the section title clear of the sticky navbar + section nav after a jump */
+	scroll-margin-top: calc(var(--navbar-height, 48px) + 64px);
+}
+
+.numo-pos-form .form-layout .form-page > .form-section .section-head,
+.numo-pos-form .form-layout .tab-pane > .form-section .section-head {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	font-size: 14.5px;
+	font-weight: 700;
+	color: var(--heading-color, var(--text-color));
+	padding-top: 14px;
+	padding-bottom: 6px;
+}
+
+.numo-pos-form .numo-sec-icon {
+	width: 30px;
+	height: 30px;
+	flex: none;
+	border-radius: 9px;
+	display: grid;
+	place-items: center;
+	background: var(--numo-teal-soft);
+	color: var(--numo-teal);
+}
+
+.numo-pos-form .numo-sec-icon svg {
+	width: 16px;
+	height: 16px;
+}
+
+.numo-pos-form .form-section .section-body {
+	padding-top: 6px;
+}
+
+/* labels + inputs */
+.numo-pos-form .frappe-control .control-label {
+	font-weight: 500;
+	color: var(--text-muted);
+}
+
+.numo-pos-form .frappe-control input.form-control,
+.numo-pos-form .frappe-control select.form-control,
+.numo-pos-form .frappe-control textarea.form-control {
+	border-radius: 9px;
+}
+
+.numo-pos-form .frappe-control input.form-control:focus,
+.numo-pos-form .frappe-control select.form-control:focus,
+.numo-pos-form .frappe-control textarea.form-control:focus {
+	box-shadow: 0 0 0 2px var(--numo-teal-line);
+}
+
+/* checkboxes become switches */
+.numo-pos-form .frappe-control[data-fieldtype="Check"] .checkbox label {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	cursor: pointer;
+}
+
+.numo-pos-form .frappe-control[data-fieldtype="Check"] input[type="checkbox"] {
+	appearance: none;
+	-webkit-appearance: none;
+	position: relative;
+	/* frappe sizes desk checkboxes at 14 px with a checkmark image: override both */
+	width: 34px !important;
+	min-width: 34px !important;
+	height: 20px !important;
+	flex: none;
+	margin: 0;
+	border-radius: 999px !important;
+	border: none !important;
+	background-color: var(--gray-400, #c2c8d0) !important;
+	background-image: none !important;
+	transition: background 120ms;
+	cursor: pointer;
+	box-shadow: none;
+}
+
+.numo-pos-form .frappe-control[data-fieldtype="Check"] input[type="checkbox"]::after {
+	content: "";
+	position: absolute;
+	top: 2px;
+	inset-inline-start: 2px;
+	width: 16px;
+	height: 16px;
+	border-radius: 50%;
+	background: #fff;
+	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+	transition: inset-inline-start 120ms;
+}
+
+.numo-pos-form .frappe-control[data-fieldtype="Check"] input[type="checkbox"]:checked {
+	background-color: var(--numo-teal) !important;
+	background-image: none !important;
+}
+
+[data-theme="dark"] .numo-pos-form .frappe-control[data-fieldtype="Check"] input[type="checkbox"]:not(:checked) {
+	background-color: #4a5160 !important;
+}
+
+.numo-pos-form .frappe-control[data-fieldtype="Check"] input[type="checkbox"]:checked::after {
+	inset-inline-start: 16px;
+}
+
+.numo-pos-form .frappe-control[data-fieldtype="Check"] input[type="checkbox"]:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+.numo-pos-form .frappe-control[data-fieldtype="Check"] input[type="checkbox"]:focus-visible {
+	outline: 2px solid var(--numo-teal);
+	outline-offset: 2px;
+}
+
+/* child tables */
+.numo-pos-form .form-grid {
+	border-radius: 10px;
+	overflow: hidden;
+}
+
+.numo-pos-form .form-grid .grid-heading-row {
+	background: var(--numo-teal-soft);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.numo-pos-form * {
+		transition: none !important;
+	}
+}
+
+@media (max-width: 767px) {
+	.numo-pos-form .numo-hero {
+		padding: 14px;
+	}
+	.numo-pos-form .numo-facts {
+		grid-template-columns: 1fr 1fr;
+	}
+}
