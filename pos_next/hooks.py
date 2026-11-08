@@ -117,7 +117,8 @@ jinja = {
 # --------
 fixtures = [
 	{"dt": "Role", "filters": [["role_name", "in", ["POSNext Cashier", "Nexus POS Manager"]]]},
-	{"dt": "Custom DocPerm", "filters": [["role", "in", ["POSNext Cashier", "Nexus POS Manager"]]]},
+	# Custom DocPerm is NOT a fixture: one bare row hides the standard roles of the whole DocType.
+	# pos_next.role_permissions grants the POS roles in after_install / after_migrate instead.
 ]
 
 # Installation

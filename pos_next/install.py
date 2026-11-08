@@ -4,7 +4,6 @@ Installation and Migration hooks for FatehPOS
 This module relies on Frappe's fixture system for:
 - Custom fields (custom_field.json)
 - Roles (role.json)
-- Custom DocPerm (custom_docperm.json)
 - Print formats (print_format.json)
 
 The fixtures are defined in hooks.py and synced automatically during install/migrate.
@@ -14,6 +13,8 @@ This module handles post-fixture tasks like setting defaults and clearing cache.
 import logging
 
 import frappe
+
+from pos_next.role_permissions import ensure_role_permissions
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -60,6 +61,9 @@ def after_install():
 
 		ensure_custom_fields()
 
+		# POS role rights without hiding the standard roles (see pos_next.role_permissions)
+		ensure_role_permissions()
+
 		# Setup default print format for POS Profiles
 		setup_default_print_format()
 
@@ -85,6 +89,9 @@ def after_migrate():
 		reclaim_pos_settings_doctype(quiet=True)
 
 		ensure_custom_fields(quiet=True)
+
+		# POS role rights; also repairs sites where the old Custom DocPerm fixture hid the standard roles
+		ensure_role_permissions(quiet=True)
 
 		# Setup default print format
 		setup_default_print_format(quiet=True)

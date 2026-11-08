@@ -1176,7 +1176,7 @@ _JE_BROADER_ROLES = frozenset(
 def get_journal_entry_permission_query_conditions(user=None):
 	"""Limit Nexus POS Manager JE lists to POS expenses (posa_is_pos_expense = 1).
 
-	The Custom DocPerm fixture grants Nexus POS Manager read/report/print/export
+	pos_next.role_permissions grants Nexus POS Manager read/report/print/export
 	on Journal Entry so the POS Expense Report can run. Without this filter that
 	grant would expose the full general ledger.
 	"""
