@@ -75,40 +75,19 @@ export default defineConfig({
 			// Registered from main.js at /pos-sw.js so its scope covers the /pos page
 			injectRegister: false,
 			manifest: {
-				name: "POSNext",
-				short_name: "POSNext",
+				name: "Numo POS",
+				short_name: "Numo POS",
 				description:
 					"Point of Sale system with real-time billing, stock management, and offline support",
-				theme_color: "#4F46E5",
+				theme_color: "#00403c",
 				background_color: "#ffffff",
 				display: "standalone",
 				scope: "/pos",
 				start_url: "/pos",
 				icons: [
-					{
-						src: "/assets/pos_next/pos/icon.svg",
-						sizes: "192x192",
-						type: "image/svg+xml",
-						purpose: "any",
-					},
-					{
-						src: "/assets/pos_next/pos/icon.svg",
-						sizes: "512x512",
-						type: "image/svg+xml",
-						purpose: "any",
-					},
-					{
-						src: "/assets/pos_next/pos/icon-maskable.svg",
-						sizes: "192x192",
-						type: "image/svg+xml",
-						purpose: "maskable",
-					},
-					{
-						src: "/assets/pos_next/pos/icon-maskable.svg",
-						sizes: "512x512",
-						type: "image/svg+xml",
-						purpose: "maskable",
-					},
+					{ src: "/assets/pos_next/pos/numo-icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
+					{ src: "/assets/pos_next/pos/numo-icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
+					{ src: "/assets/pos_next/pos/numo-icon-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
 				],
 			},
 			workbox: {

@@ -1,5 +1,22 @@
 import frappeUIPreset from "frappe-ui/tailwind";
 
+// Numo brand: every upstream blue / indigo utility renders in the Numo teal
+// scale, so the 500+ hard-coded classes follow the brand without touching
+// the components (keeps upstream merges conflict-free).
+const numoTeal = {
+	50: "#eaf6f4",
+	100: "#cdebe6",
+	200: "#9dd6cd",
+	300: "#66bcae",
+	400: "#339e8e",
+	500: "#0d8273",
+	600: "#05685e",
+	700: "#00544c",
+	800: "#00403c",
+	900: "#0a3431",
+	950: "#04201e",
+};
+
 export default {
 	presets: [frappeUIPreset],
 	content: [
@@ -11,6 +28,8 @@ export default {
 		extend: {
 			// POS tokens (see :root in src/index.css); frappe-ui already owns ink/surface
 			colors: {
+				blue: numoTeal,
+				indigo: numoTeal,
 				pos: {
 					ink: "var(--pos-ink)",
 					muted: "var(--pos-ink-muted)",

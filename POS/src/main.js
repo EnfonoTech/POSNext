@@ -43,6 +43,7 @@ import {
 } from "frappe-ui";
 
 import "./index.css";
+import "./numo.css";
 
 const log = logger.create("Main");
 

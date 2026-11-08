@@ -10,17 +10,18 @@
 	--z-dropdown: 10000;
 	--z-authorization: 10010;
 
-	/* POS visual tokens. Colour carries meaning only: action is the single primary,
+	/* Numo brand values (teal action, warm neutral panels); meaning unchanged.
+	   POS visual tokens. Colour carries meaning only: action is the single primary,
 	   saving marks discounts and gifts, caution marks low stock, near expiry and credit,
 	   danger is for destructive actions and real errors. Tailwind: text-pos-ink, bg-pos-action, ... */
-	--pos-ink: #1d2433;
-	--pos-ink-muted: #5b6475;
+	--pos-ink: #13201f;
+	--pos-ink-muted: #56625f;
 	--pos-surface: #ffffff;
-	--pos-panel: #f3f5f8;
-	--pos-line: #dde2ea;
-	--pos-action: #0b63ce;
-	--pos-action-hover: #0952ab;
-	--pos-action-soft: #e8f1fc;
+	--pos-panel: #f2f6f5;
+	--pos-line: #dbe4e2;
+	--pos-action: #05685e;
+	--pos-action-hover: #00403c;
+	--pos-action-soft: #e6f3f1;
 	--pos-saving: #0f7a4a;
 	--pos-caution: #b45309;
 	--pos-danger: #b91c1c;

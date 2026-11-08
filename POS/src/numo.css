@@ -1,0 +1,53 @@
+/*
+ * Numo look for the Enfono build of POSNext.
+ *
+ * Kept apart from the upstream components on purpose: colours come from the
+ * tokens in index.css and the blue -> teal palette in tailwind.config.js, and
+ * the few shape tweaks below target stable hooks (.pos-item-grid, role,
+ * aspect-square) so an upstream merge never conflicts with the brand.
+ */
+
+/* Item grid: softer cards that lift on hover, white photo well, teal price */
+.pos-item-grid > [role="button"] {
+	border-radius: 14px;
+	transition:
+		border-color 100ms,
+		box-shadow 150ms,
+		transform 150ms;
+}
+
+@media (hover: hover) {
+	.pos-item-grid > [role="button"]:hover {
+		transform: translateY(-2px);
+		box-shadow:
+			0 6px 16px -6px rgb(0 64 60 / 0.25),
+			0 2px 4px -2px rgb(0 64 60 / 0.12);
+	}
+}
+
+.pos-item-grid > [role="button"]:active {
+	transform: translateY(0) scale(0.985);
+}
+
+.pos-item-grid > [role="button"] > .aspect-square {
+	border-radius: 10px;
+	background-color: #ffffff;
+}
+
+.pos-item-grid > [role="button"] h3 {
+	font-weight: 600;
+}
+
+.pos-item-grid > [role="button"] p > span.tabular-nums.font-semibold {
+	color: var(--pos-action);
+	font-weight: 700;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.pos-item-grid > [role="button"],
+	.pos-item-grid > [role="button"]:hover,
+	.pos-item-grid > [role="button"]:active {
+		transform: none;
+		transition: none;
+	}
+}

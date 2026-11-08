@@ -1,3 +1,4 @@
+import { BRAND } from "@/brand";
 /**
  * Common Error Handler for API Exceptions
  * Provides consistent error parsing and user-friendly messages
@@ -219,7 +220,7 @@ export function parseError(error) {
  */
 export function formatErrorReport(errorContext, additionalInfo = {}) {
 	const lines = [
-		__("Error Report - FatehPOS"),
+		__("Error Report - {0}", [__(BRAND.name)]),
 		"=".repeat(40),
 		__("Title: {0}", [errorContext.title]),
 		__("Type: {0}", [errorContext.type]),

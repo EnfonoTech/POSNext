@@ -1,11 +1,12 @@
 <template>
 	<div
-		class="min-h-screen flex flex-col items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8"
+		class="min-h-screen flex flex-col items-center justify-center bg-pos-panel py-12 px-4 sm:px-6 lg:px-8"
 	>
 		<div class="max-w-md w-full space-y-8">
 			<div class="text-center">
-				<h2 class="mt-6 text-3xl font-extrabold text-gray-900">
-					{{ __("Sign in to FatehPOS") }}
+				<img :src="BRAND.logo" :alt="__(BRAND.name)" class="mx-auto h-24 w-auto" draggable="false" />
+				<h2 class="mt-6 text-2xl font-bold text-pos-ink">
+					{{ __("Sign in to {0}", [__(BRAND.name)]) }}
 				</h2>
 				<p class="mt-2 text-sm text-gray-600">
 					{{ __("Access your point of sale system") }}
@@ -18,7 +19,7 @@
 					<div v-if="!loginAllowed" role="alert" class="rounded-md bg-amber-50 p-4 text-sm text-amber-900">
 						<p class="font-semibold">{{ __("Secure connection required") }}</p>
 						<p class="mt-1">
-							{{ __("Open POS Next over https:// to sign in. Passwords are never sent over an insecure connection.") }}
+							{{ __("Open {0} over https:// to sign in. Passwords are never sent over an insecure connection.", [__(BRAND.name)]) }}
 						</p>
 					</div>
 					<div v-if="session.login.error" class="rounded-md bg-red-50 p-4">
@@ -119,6 +120,7 @@
 </template>
 
 <script setup>
+import { BRAND } from "@/brand";
 import { FeatherIcon } from "frappe-ui";
 import { onMounted, reactive, ref, watch } from "vue";
 import { useRouter } from "vue-router";
