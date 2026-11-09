@@ -154,6 +154,18 @@
 				</svg>
 				<span class="mx-4">{{ __("Logout") }}</span>
 			</button>
+
+			<!-- Enfono / Numo: POS Next is AGPL-3.0; users of the POS can get this build's source here
+			     (the bottom footer strip is gone, owner 2026-11-09). -->
+			<a
+				:href="BRAND.sourceUrl"
+				target="_blank"
+				rel="noopener noreferrer"
+				dir="ltr"
+				class="block px-4 pt-1 pb-2 text-[11px] leading-tight text-gray-400 hover:text-gray-600"
+			>
+				{{ __(BRAND.name) }} · {{ __("Built on POS Next (AGPL-3.0)") }} · {{ __("Source code") }}
+			</a>
 		</div>
 	</div>
 </template>
@@ -161,6 +173,7 @@
 <script setup>
 import { computed, h, onMounted, onUnmounted, ref, watch } from "vue";
 import { useLocale } from "@/composables/useLocale";
+import { BRAND } from "@/brand";
 
 // Avatar Sub-component
 const Avatar = (props) => {
