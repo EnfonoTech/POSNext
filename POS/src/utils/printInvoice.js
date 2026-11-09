@@ -1,3 +1,4 @@
+import { BRAND } from "@/brand";
 import { call } from "@/utils/apiWrapper";
 import { formatDate, formatDateTime } from "@/utils/currency";
 import { logger } from "@/utils/logger";
@@ -341,7 +342,7 @@ export function buildReceiptHTML(invoiceData) {
 					${
 						invoiceData.footer
 							? ""
-							: `<div style="font-size: 10px;">Powered by <a href="https://nexus.brainwise.me" target="_blank" style="color: #3b82f6; text-decoration: none; font-weight: 600;">BrainWise</a></div>`
+							: `<div style="font-size: 10px;">${__(BRAND.name)} · ${__("Built on POS Next (AGPL-3.0)")}</div>`
 					}
 				</div>
 			</div>`;

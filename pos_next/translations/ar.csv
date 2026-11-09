@@ -1992,3 +1992,5 @@ Points applied: {0}. Please pay remaining {1} with {2},تم خصم النقاط:
 "You will be logged out of {0}","سيتم تسجيل خروجك من {0}",""
 "Error Report - {0}","تقرير الخطأ - {0}",""
 "Install {0}","تثبيت {0}",""
+"Built on POS Next (AGPL-3.0)","مبني على POS Next (رخصة AGPL-3.0)",""
+"Source code","الشيفرة المصدرية",""

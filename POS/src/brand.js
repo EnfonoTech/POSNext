@@ -16,6 +16,8 @@ export const BRAND = Object.freeze({
 	mark: `${base}numo-mark.webp`,
 	/** Full bilingual logo with tagline, for the sign-in screen. */
 	logo: `${base}numo-logo.webp`,
+	/** This build's source (AGPL-3.0: users of the POS can get it). */
+	sourceUrl: "https://github.com/EnfonoTech/POSNext",
 	/** Browser chrome colour (Numo deep teal). */
 	themeColor: "#00403c",
 })

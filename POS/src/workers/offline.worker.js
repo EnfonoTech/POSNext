@@ -590,8 +590,8 @@ async function searchCachedItems(searchTerm = "", limit = 50, offset = 0) {
 		const results = allItems
 			.map((item) => {
 				const searchable = `${item.item_code || ""} ${item.item_name || ""} ${
-					item.description || ""
-				}`.toLowerCase();
+					item.custom_item_name_arabic || ""
+				} ${item.description || ""}`.toLowerCase();
 
 				// All words must match
 				if (!searchWords.every((word) => searchable.includes(word))) {

@@ -31,6 +31,17 @@ ITEM_RESULT_FIELDS = [
 
 ITEM_RESULT_COLUMNS = ",\n\t".join(ITEM_RESULT_FIELDS)
 
+# Enfono: the Arabic item name (fateh_erp_v2 ships Item.custom_item_name_arabic). Optional column:
+# added only where the site has it, so sites without fateh_erp_v2 keep the upstream query.
+ARABIC_NAME_FIELD = "custom_item_name_arabic"
+
+
+def _item_result_fields():
+	fields = list(ITEM_RESULT_FIELDS)
+	if frappe.db.has_column("Item", ARABIC_NAME_FIELD):
+		fields.append(ARABIC_NAME_FIELD)
+	return fields
+
 
 def _get_item_price_transaction_date(transaction_date=None):
 	return getdate(transaction_date or nowdate())
@@ -1298,9 +1309,9 @@ def get_items(
 		)
 
 		# Build column list with table alias
-		item_columns = ",\n\t".join([f"i.{col}" for col in ITEM_RESULT_FIELDS])
+		item_columns = ",\n\t".join([f"i.{col}" for col in _item_result_fields()])
 		# For GROUP BY, extract just the column name (before " as " if present)
-		group_by_columns = ", ".join([f"i.{col.split(' as ')[0]}" for col in ITEM_RESULT_FIELDS])
+		group_by_columns = ", ".join([f"i.{col.split(' as ')[0]}" for col in _item_result_fields()])
 
 		# Add search conditions if search term provided
 		if effective_search_term and effective_search_term.strip():
@@ -1655,8 +1666,8 @@ def get_items_bulk(
 			conditions.append(f"i.item_group IN ({placeholders})")
 			params.extend(all_groups)
 
-		item_columns = ",\n\t".join([f"i.{col}" for col in ITEM_RESULT_FIELDS])
-		group_by_columns = ", ".join([f"i.{col.split(' as ')[0]}" for col in ITEM_RESULT_FIELDS])
+		item_columns = ",\n\t".join([f"i.{col}" for col in _item_result_fields()])
+		group_by_columns = ", ".join([f"i.{col.split(' as ')[0]}" for col in _item_result_fields()])
 
 		where_clause = " AND ".join(conditions)
 		query = f"""

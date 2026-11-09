@@ -217,16 +217,12 @@ doc_events = {
 # Scheduled Tasks
 # ---------------
 
+# Enfono / Numo: the BrainWise branding monitor jobs (hourly integrity check, daily session
+# validation, monthly counter reset) are off: the Numo footer replaces the integrity-checked one,
+# and the hourly check only logged "Missing Signature" on every site.
 scheduler_events = {
-	"hourly": [
-		"pos_next.tasks.branding_monitor.monitor_branding_integrity",
-	],
 	"daily": [
 		"pos_next.tasks.cleanup_expired_promotions.cleanup_expired_promotions",
-		"pos_next.tasks.branding_monitor.validate_all_active_sessions",
-	],
-	"monthly": [
-		"pos_next.tasks.branding_monitor.reset_tampering_counter",
 	],
 }
 

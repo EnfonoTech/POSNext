@@ -580,8 +580,15 @@
 								class="text-pos-sm font-medium text-pos-ink line-clamp-2 leading-snug min-h-[2.75em]"
 								:title="item.item_name"
 							>
-								{{ item.item_name }}
+								{{ itemNames(item).primary }}
 							</h3>
+							<p
+								v-if="itemNames(item).secondary"
+								dir="auto"
+								class="numo-item-alt text-xs text-gray-500 truncate leading-tight -mt-1"
+							>
+								{{ itemNames(item).secondary }}
+							</p>
 							<p
 								v-if="item.attributes"
 								dir="auto"
@@ -796,7 +803,14 @@
 									class="text-pos-sm font-medium text-pos-ink truncate"
 									:title="item.item_name"
 								>
-									{{ item.item_name }}
+									{{ itemNames(item).primary }}
+								</div>
+								<div
+									v-if="itemNames(item).secondary"
+									dir="auto"
+									class="numo-item-alt text-xs text-gray-500 truncate leading-tight"
+								>
+									{{ itemNames(item).secondary }}
 								</div>
 								<div
 									v-if="item.attributes"
@@ -950,6 +964,8 @@ import { useDialogState } from "@/composables/useDialogState";
 import { useSearchInput } from "@/composables/useSearchInput";
 import { DEFAULT_CURRENCY, formatCurrency as formatCurrencyUtil } from "@/utils/currency";
 import { useToast } from "@/composables/useToast";
+import { itemNames as itemNamesFor } from "@/utils/itemNames";
+import { useLocale } from "@/composables/useLocale";
 import { storeToRefs } from "pinia";
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import {
@@ -1392,6 +1408,12 @@ function scrollChips(direction) {
 }
 
 watch(activeFilterOptions, () => nextTick(updateChipScroll));
+
+// Enfono: bilingual item names (Item.custom_item_name_arabic from fateh_erp_v2); Arabic first in an Arabic UI
+const { isRTL: localeIsRTL } = useLocale();
+function itemNames(item) {
+	return itemNamesFor(item, localeIsRTL.value);
+}
 
 function formatCurrency(amount) {
 	return formatCurrencyUtil(Number.parseFloat(amount || 0), props.currency);
