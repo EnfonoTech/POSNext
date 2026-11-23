@@ -84,17 +84,14 @@ def disable_expired_promotional_schemes():
 
 		today = nowdate()
 
-		# Find all active promotional schemes with expired valid_upto dates
-		expired_schemes = frappe.db.sql(
-			"""
-			SELECT name, selling_or_buying, valid_upto
-			FROM `tabPromotional Scheme`
-			WHERE disable = 0
-				AND valid_upto IS NOT NULL
-				AND valid_upto < %s
-			""",
-			(today,),
-			as_dict=1,
+		# Find all active promotional schemes with expired valid_upto dates.
+		# Only name + valid_upto: ERPNext v15's Promotional Scheme has `selling` /
+		# `buying` checkboxes and no `selling_or_buying` column (naming it failed
+		# every night with OperationalError 1054).
+		expired_schemes = frappe.get_all(
+			"Promotional Scheme",
+			filters={"disable": 0, "valid_upto": ["<", today]},
+			fields=["name", "valid_upto"],
 		)
 
 		if not expired_schemes:
